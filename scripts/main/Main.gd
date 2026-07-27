@@ -33,9 +33,10 @@ func _start_game() -> void:
 
 	# ── Brücken-View als Kind des Schiffs ──────────────────────────────────────
 	# Kamera ist damit automatisch im Schiff-Koordinatensystem → kein Gimbal-Lock
-	var bridge_view := BridgeView.new()
+	var bridge_view: Node3D = BridgeView.new()
 	ship.add_child(bridge_view)
 	camera_rig.set_bridge_view(bridge_view)
+	bridge_view.set_ship_ref(ship)
 
 	world_manager = WorldManager.new(); add_child(world_manager); world_manager.set_player(ship)
 	soi_tracker   = SOITracker.new();   add_child(soi_tracker);   soi_tracker.set_player(ship)

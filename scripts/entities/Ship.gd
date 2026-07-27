@@ -1,10 +1,6 @@
 class_name Ship
 extends Node3D
 
-# ── Maßstab ──────────────────────────────────────────────────────────────────
-# Erde = 10.0 Units = 6371 km  →  1 Unit ≈ 637 m
-# Enterprise-D Saucer-Radius real ≈ 210 m = 0.33 Units
-# Spielwert 0.03 = ~90× real  →  1/333 des Erddurchmessers, klar sichtbar
 const SAUCER_RADIUS := 0.03
 
 const DEFAULT_SPEED          := 150.0
@@ -77,41 +73,85 @@ func _handle_rotation(delta: float) -> void:
 func _build_model() -> void:
 	var s := SAUCER_RADIUS
 
-	# Saucer-Disk
+	# ── Saucer-Disk (VORNE, z≈0, flache Scheibe) ──────────────────────────────
+	# Kamera schaut von +Z → sieht die Unterseite der Scheibe = korrekt
 	var saucer := MeshInstance3D.new()
-	var sm := SphereMesh.new(); sm.radius = s; sm.height = s * 0.5
-	saucer.mesh  = sm
-	saucer.position = Vector3(0.0, s * 0.12, 0.0)
-	saucer.scale    = Vector3(1.0, 0.22, 1.0)
+	var sm := SphereMesh.new(); sm.radius = s; sm.height = s * 0.4
+	saucer.mesh     = sm
+	saucer.scale    = Vector3(1.0, 0.20, 1.0)   # zur flachen Disk quetschen
+	saucer.position = Vector3(0.0, s * 0.06, 0.0)
 	add_child(saucer)
 
-	# Verbindungs-Hull
-	var hull := MeshInstance3D.new()
-	var hm := BoxMesh.new(); hm.size = Vector3(s * 0.35, s * 0.28, s * 1.5)
-	hull.mesh = hm; hull.position = Vector3(0.0, -s * 0.12, -s * 0.9); add_child(hull)
+	# ── Verbindungshals (Saucer → Sekundärrumpf, HINTER Saucer = +Z) ─────────
+	var neck := MeshInstance3D.new()
+	var nm := BoxMesh.new(); nm.size = Vector3(s * 0.28, s * 0.22, s * 0.50)
+	neck.mesh     = nm
+	neck.position = Vector3(0.0, -s * 0.10, s * 0.55)
+	add_child(neck)
 
-	# Gondeln + Triebwerks-Glow
+	# ── Sekundärrumpf / Engineering-Sektion (HINTER Hals = +Z) ───────────────
+	var hull := MeshInstance3D.new()
+	var hm := BoxMesh.new(); hm.size = Vector3(s * 0.52, s * 0.34, s * 0.88)
+	hull.mesh     = hm
+	hull.position = Vector3(0.0, -s * 0.16, s * 1.08)
+	add_child(hull)
+
+	# ── Gondelhalterungen ──────────────────────────────────────────────────────
+	for side in [-1, 1]:
+		var pylon := MeshInstance3D.new()
+		var pm := BoxMesh.new(); pm.size = Vector3(s * 0.30, s * 0.10, s * 0.44)
+		pylon.mesh     = pm
+		pylon.position = Vector3(float(side) * s * 0.72, -s * 0.05, s * 0.74)
+		add_child(pylon)
+
+	# ── Gondeln (HINTER Saucer = +Z, horizontal ausgerichtet) ────────────────
+	# Kamera sieht die Rückseite der Gondeln (Warpgitter-Glow) → korrekt
 	for side in [-1, 1]:
 		var nac := MeshInstance3D.new()
-		var nm  := CylinderMesh.new()
-		nm.top_radius = s * 0.13; nm.bottom_radius = s * 0.13; nm.height = s * 1.6
-		nac.mesh = nm; nac.rotation_degrees = Vector3(90.0, 0.0, 0.0)
-		nac.position = Vector3(float(side) * s * 0.72, 0.0, -s * 1.1); add_child(nac)
+		var ncm := CylinderMesh.new()
+		ncm.top_radius    = s * 0.12
+		ncm.bottom_radius = s * 0.12
+		ncm.height        = s * 1.55
+		nac.mesh             = ncm
+		nac.rotation_degrees = Vector3(90.0, 0.0, 0.0)   # entlang Z ausrichten
+		nac.position         = Vector3(float(side) * s * 0.86, -s * 0.04, s * 1.08)
+		add_child(nac)
 
+		# Bussard-Kollektoren (ROT, VORNE der Gondeln = kleineres +Z)
+		var bussard := MeshInstance3D.new()
+		var bm := SphereMesh.new(); bm.radius = s * 0.13
+		bussard.mesh = bm
+		var bmat := StandardMaterial3D.new()
+		bmat.albedo_color              = Color(0.90, 0.08, 0.04)
+		bmat.emission_enabled          = true
+		bmat.emission                  = Color(0.80, 0.04, 0.02)
+		bmat.emission_energy_multiplier = 2.5
+		bussard.material_override = bmat
+		bussard.position          = Vector3(float(side) * s * 0.86, -s * 0.04, s * 0.33)
+		add_child(bussard)
+
+		# Warpgitter-Glow (BLAU, HINTEN der Gondeln = größtes +Z → Kamera sieht es)
 		var glow := MeshInstance3D.new()
-		var gm   := SphereMesh.new(); gm.radius = s * 0.14; gm.height = s * 0.28
+		var gm := SphereMesh.new(); gm.radius = s * 0.14
 		glow.mesh = gm
 		var gmat := StandardMaterial3D.new()
 		gmat.emission_enabled           = true
-		gmat.emission                   = Color(0.6, 0.8, 1.0)
-		gmat.emission_energy_multiplier = 4.0
+		gmat.emission                   = Color(0.55, 0.80, 1.0)
+		gmat.emission_energy_multiplier = 4.5
 		glow.material_override = gmat
-		glow.position = Vector3(float(side) * s * 0.72, 0.0, -s * 1.9); add_child(glow)
+		glow.position          = Vector3(float(side) * s * 0.86, -s * 0.04, s * 1.83)
+		add_child(glow)
 
-	# Deflektorschüssel
+	# ── Deflektorschüssel (VORNE des Sekundärrumpfs, zeigt in -Z = vorwärts) ──
+	# Liegt bei +z ≈ s*0.64 (Vorderkante des Sekundärrumpfs), unter der Saucer-Ebene
 	var defl := MeshInstance3D.new()
-	var dm   := SphereMesh.new(); dm.radius = s * 0.18; dm.height = s * 0.36
+	var dm := SphereMesh.new(); dm.radius = s * 0.20; dm.height = s * 0.40
 	defl.mesh = dm
-	var dmat := StandardMaterial3D.new(); dmat.albedo_color = Color(1.0, 0.45, 0.15)
+	var dmat := StandardMaterial3D.new()
+	dmat.albedo_color              = Color(0.15, 0.35, 0.90)
+	dmat.emission_enabled          = true
+	dmat.emission                  = Color(0.10, 0.25, 0.85)
+	dmat.emission_energy_multiplier = 2.5
 	defl.material_override = dmat
-	defl.position = Vector3(0.0, -s * 0.12, -s * 1.72); add_child(defl)
+	defl.position          = Vector3(0.0, -s * 0.18, s * 0.64)
+	add_child(defl)

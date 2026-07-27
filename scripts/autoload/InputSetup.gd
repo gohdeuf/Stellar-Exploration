@@ -15,13 +15,13 @@ func _ready() -> void:
 	_add("next_weapon",KEY_X);       _add("toggle_warp",KEY_J)
 	_add("dock_station",KEY_K);      _add("emergency_ai_toggle",KEY_N)
 	_add("toggle_ship_am",KEY_P);    _add("toggle_bridge",KEY_C)
+	_add("toggle_vscreen",KEY_V);    _add("look_reset",KEY_R)
 	_add_shift("cycle_language",KEY_L)
 
 func _add_shift(n: String, k: Key) -> void:
 	if InputMap.has_action(n): return
 	InputMap.add_action(n); var ev := InputEventKey.new()
 	ev.physical_keycode = k; ev.shift_pressed = true; InputMap.action_add_event(n, ev)
-
 func _add(n: String, k: Key) -> void:
 	if InputMap.has_action(n): return
 	InputMap.add_action(n); var ev := InputEventKey.new()
