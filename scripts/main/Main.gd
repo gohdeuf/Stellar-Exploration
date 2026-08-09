@@ -32,10 +32,10 @@ func _start_game() -> void:
 	camera_rig.set_target(ship)
 
 	# ── Brücken-View als Kind des Schiffs ──────────────────────────────────────
-	# Kamera ist damit automatisch im Schiff-Koordinatensystem → kein Gimbal-Lock
-	var bridge_view := BridgeView.new()
+	var bridge_view: Node3D = BridgeView.new()
 	ship.add_child(bridge_view)
 	camera_rig.set_bridge_view(bridge_view)
+	bridge_view.set_ship_ref(ship)
 
 	world_manager = WorldManager.new(); add_child(world_manager); world_manager.set_player(ship)
 	soi_tracker   = SOITracker.new();   add_child(soi_tracker);   soi_tracker.set_player(ship)
@@ -61,6 +61,13 @@ func _start_game() -> void:
 	var ship_reactor := ShipReactor.new(); ship.add_child(ship_reactor)
 	ship_reactor.setup(ship, _soi_notif)
 
+	# ── Schild-System ──────────────────────────────────────────────────────────
+	var shield_system := ShieldSystem.new(); ship.add_child(shield_system)
+	shield_system.setup(ship, _soi_notif)
+	var shield_data: Dictionary = GameDatabase.player_shield
+	shield_system.integrity = float(shield_data.get("integrity", 100.0))
+	shield_system.shield_active = bool(shield_data.get("active", true))
+
 	var docking_system := DockingSystem.new(); add_child(docking_system)
 	docking_system.setup(ship, _soi_notif)
 
@@ -71,7 +78,7 @@ func _start_game() -> void:
 	add_child(station_mgmt); station_mgmt.setup(ship, _soi_notif)
 	docking_system.docked.connect(func(_st: Node3D) -> void: station_mgmt.open_panel())
 
-	ship.init_systems(weapon_system, warp_drive, crew_system)
+	ship.init_systems(weapon_system, warp_drive, crew_system, shield_system)
 
 	var map: GalaxyMap = preload("res://scenes/UI/GalaxyMap.tscn").instantiate()
 	add_child(map); map.set_player(ship)
@@ -131,10 +138,19 @@ func _process(delta: float) -> void:
 	_save_timer += delta
 	if _save_timer >= SAVE_INTERVAL and ship != null:
 		_save_timer = 0.0
-		GameDatabase.save_player_state(ship.global_position, ship.quaternion)
+		var shield: ShieldSystem = ship.get_meta("shield_system", null)
+		if shield != null:
+			GameDatabase.set_shield_integrity(shield.integrity)
+			GameDatabase.set_shield_active(shield.shield_active)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("quit_game"):
-		if ship != null:          GameDatabase.save_player_state(ship.global_position, ship.quaternion)
+		if ship != null:
+			var shield: ShieldSystem = ship.get_meta("shield_system", null)
+			if shield != null:
+				GameDatabase.set_shield_integrity(shield.integrity)
+				GameDatabase.set_shield_active(shield.shield_active)
+			GameDatabase.save_player_state(ship.global_position, ship.quaternion)
 		if world_manager != null: world_manager.save_all_sector_resources()
+		GameDatabase.close_database()   # ← DAS HIER EINFÜGEN
 		get_tree().quit()

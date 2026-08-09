@@ -35,11 +35,26 @@ func _process(delta: float) -> void:
 	if _direction == Vector3.ZERO:
 		_direction = -global_transform.basis.z
 	global_position += _direction * speed * delta
+
+	# ── Spieler-Treffer (mit Schild-Check) ─────────────────────────────────────
+	var player_ship := get_tree().get_first_node_in_group("player_ship")
+	if player_ship != null and global_position.distance_to(player_ship.global_position) < 6.0:
+		var shield: ShieldSystem = player_ship.get_meta("shield_system", null)
+		if shield != null and shield.intercept_torpedo():
+			_explode()
+			return
+		if player_ship.has_method("take_damage"):
+			player_ship.take_damage(damage)
+		_explode()
+		return
+
+	# ── NPC-Treffer ────────────────────────────────────────────────────────────
 	for npc in get_tree().get_nodes_in_group("npc_ships"):
 		if global_position.distance_to(npc.global_position) < 6.0:
 			if npc.has_method("take_damage"):
 				npc.take_damage(damage)
-			_explode(); return
+			_explode()
+			return
 
 func _explode() -> void:
 	if get_parent() == null: queue_free(); return
