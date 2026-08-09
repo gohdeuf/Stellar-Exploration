@@ -21,7 +21,13 @@ func ensure_sector_generated(sector_id: String) -> Dictionary:
 	if _cache.has(sector_id): return _cache[sector_id]
 	var result := _generate_sector(sector_id)
 	_apply_resource_overrides(sector_id, result)
-	_cache[sector_id] = result; return result
+	_cache[sector_id] = result
+	
+	# NEU: System in die Datenbank speichern
+	if not result.is_empty():
+		GameDatabase.save_system(result)
+	
+	return result
 
 func get_cached_systems() -> Array:
 	var result: Array = []
@@ -95,69 +101,44 @@ func _generate_moons(rng: RandomNumberGenerator, cls: String,
 
 func _moon_letter(index: int) -> String: return ["a","b","c","d"][index % 4]
 
-# ── Sol-System ────────────────────────────────────────────────────────────────
+# ── Sol-System (kompakt) ──────────────────────────────────────────────────────
 # Erde = 10.0 Units, Erde-Orbit = 200 Units.
-# Alle abs_orbit = Abstand vom PLANETENZENTRUM (nicht Oberfläche).
+# Gasriesen verkleinert, äußere Orbits komprimiert.
 #
-# Lücken-Nachweis (Oberfläche → Oberfläche bei ungünstigster Ausrichtung):
-#   Venus  ↔ Erde     :  (200-10) - (137.5+9.5)       = 43.0  ✓
-#   Erde   ↔ Mars     :  (280-33) - (200+27.5)         = 19.5  ✓
-#   Mars   ↔ Jupiter  :  (550-198) - (280+33)          = 39.0  ✓
-#   Jupiter↔ Saturn   :  (950-134.5) - (550+198)       = 67.5  ✓
-#   Saturn ↔ Uranus   :  (1200-57.5) - (950+134.5)     = 58.0  ✓
-#   Uranus ↔ Neptun   :  (1380-58)   - (1200+57.5)     = 64.5  ✓
-#   Neptun ↔ Pluto    :  (1500-11.875) - (1380+58)     = 50.1  ✓
+# Lücken-Nachweis (Oberfläche → Oberfläche):
+#   Mars   ↔ Jupiter :  (480-95) - (280+5.25)      = 99.75  ✓
+#   Jupiter↔ Saturn  :  (720-56) - (480+95)         = 89.0   ✓
+#   Saturn ↔ Uranus  :  (900-26) - (720+56)         = 98.0   ✓
+#   Uranus ↔ Neptun  :  (1040-24) - (900+26)        = 90.0   ✓
+#   Neptun ↔ Pluto   :  (1140-10.875) - (1040+24)   = 65.125 ✓
 func _build_sol_system() -> Dictionary:
-	# [name, class, planet_radius, orbit_radius,
-	#  moons: [suffix, speed, moon_r, abs_orbit_from_planet_center]]
 	var defs := [
 		{"name":"Merkur", "class":"D","radius":  3.75,"orbit_radius":  75.0,"moons":[]},
 		{"name":"Venus",  "class":"H","radius":  9.5, "orbit_radius": 137.5,"moons":[]},
 		{"name":"Erde",   "class":"M","radius": 10.0, "orbit_radius": 200.0,"moons":[
-			# planet_r(10) + gap(12) + moon_r(2.75) = 24.75  → clearance 12.0 ✓
 			{"suffix":"Luna",      "speed":15.0,"moon_r":2.75,"abs_orbit": 24.75},
 		]},
 		{"name":"Mars",   "class":"K","radius":  5.25,"orbit_radius": 280.0,"moons":[
-			# 5.25 + 12 + 1.0 = 18.25   → clearance 12.0 ✓
 			{"suffix":"Phobos",    "speed":35.0,"moon_r":1.0, "abs_orbit": 18.25},
-			# 18.25 + 1.0 + 12 + 0.875 = 32.125  → gap to Phobos = 12.0 ✓
 			{"suffix":"Deimos",    "speed":20.0,"moon_r":0.875,"abs_orbit":32.125},
 		]},
-		# Jupiter 11.21× Erde = 112 Units – orbit 550
-		# Callisto-Reichweite: 194.25+3.75=198 → Jupiter-Seite: 550-198=352
-		# Mars-Seite max: 280+33=313 → Lücke = 352-313 = 39 ✓
-		{"name":"Jupiter","class":"J","radius":112.0, "orbit_radius": 550.0,"moons":[
-			# 112 + 15 + 2.75 = 129.75  → clearance 15.0 ✓
-			{"suffix":"Io",        "speed":30.0,"moon_r":2.75,"abs_orbit":129.75},
-			# 129.75 + 2.75 + 15 + 2.5 = 150.0  → gap 15.0 ✓
-			{"suffix":"Europa",    "speed":24.0,"moon_r":2.5, "abs_orbit":150.0 },
-			# 150.0 + 2.5 + 15 + 4.0 = 171.5   → gap 15.0 ✓
-			{"suffix":"Ganymed",   "speed":18.0,"moon_r":4.0, "abs_orbit":171.5 },
-			# 171.5 + 4.0 + 15 + 3.75 = 194.25  → gap 15.0 ✓
-			{"suffix":"Callisto",  "speed":12.0,"moon_r":3.75,"abs_orbit":194.25},
+		{"name":"Jupiter","class":"J","radius": 40.0, "orbit_radius": 480.0,"moons":[
+			{"suffix":"Io",        "speed":30.0,"moon_r":2.75,"abs_orbit": 52.0},
+			{"suffix":"Europa",    "speed":24.0,"moon_r":2.5, "abs_orbit": 65.0 },
+			{"suffix":"Ganymed",   "speed":18.0,"moon_r":4.0, "abs_orbit": 80.0 },
+			{"suffix":"Callisto",  "speed":12.0,"moon_r":3.75,"abs_orbit": 95.0},
 		]},
-		# Saturn 9.45× Erde = 94.5 Units – orbit 950
-		# Titan-Reichweite: 113.5+4.0=117.5, Enceladus: 133.5+1.0=134.5
-		# Saturn-Seite: 950-134.5=815.5, Jupiter-Seite max: 550+198=748 → Lücke 67.5 ✓
-		{"name":"Saturn", "class":"T","radius": 94.5, "orbit_radius": 950.0,"moons":[
-			# 94.5 + 15 + 4.0 = 113.5  → clearance 15.0 ✓
-			{"suffix":"Titan",     "speed":16.0,"moon_r":4.0, "abs_orbit":113.5},
-			# 113.5 + 4.0 + 15 + 1.0 = 133.5  → gap 15.0 ✓
-			{"suffix":"Enceladus", "speed":26.0,"moon_r":1.0, "abs_orbit":133.5},
+		{"name":"Saturn", "class":"T","radius": 34.0, "orbit_radius": 720.0,"moons":[
+			{"suffix":"Titan",     "speed":16.0,"moon_r":4.0, "abs_orbit": 45.0},
+			{"suffix":"Enceladus", "speed":26.0,"moon_r":1.0, "abs_orbit": 56.0},
 		]},
-		# Uranus 4.01× Erde = 40.0 Units – orbit 1200
-		{"name":"Uranus", "class":"6","radius": 40.0, "orbit_radius":1200.0,"moons":[
-			# 40.0 + 15 + 1.25 = 56.25  → clearance 15.0 ✓
-			{"suffix":"Titania",   "speed":14.0,"moon_r":1.25,"abs_orbit": 56.25},
+		{"name":"Uranus", "class":"6","radius": 18.0, "orbit_radius": 900.0,"moons":[
+			{"suffix":"Titania",   "speed":14.0,"moon_r":1.25,"abs_orbit": 26.0},
 		]},
-		# Neptun 3.88× Erde = 38.75 Units – orbit 1380
-		{"name":"Neptun", "class":"7","radius": 38.75,"orbit_radius":1380.0,"moons":[
-			# 38.75 + 15 + 2.125 = 55.875  → clearance 15.0 ✓
-			{"suffix":"Triton",    "speed":13.0,"moon_r":2.125,"abs_orbit":55.875},
+		{"name":"Neptun", "class":"7","radius": 16.0, "orbit_radius":1040.0,"moons":[
+			{"suffix":"Triton",    "speed":13.0,"moon_r":2.125,"abs_orbit":24.0},
 		]},
-		# Pluto 0.186× Erde = 1.875 Units – orbit 1500
-		{"name":"Pluto",  "class":"Y","radius":  1.875,"orbit_radius":1500.0,"moons":[
-			# 1.875 + 8 + 1.0 = 10.875  → clearance 8.0 ✓
+		{"name":"Pluto",  "class":"Y","radius":  1.875,"orbit_radius":1140.0,"moons":[
 			{"suffix":"Charon",    "speed":10.0,"moon_r":1.0, "abs_orbit": 10.875},
 		]},
 	]

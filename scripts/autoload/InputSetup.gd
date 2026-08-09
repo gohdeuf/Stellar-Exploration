@@ -17,6 +17,7 @@ func _ready() -> void:
 	_add("toggle_ship_am",KEY_P);    _add("toggle_bridge",KEY_C)
 	_add("toggle_vscreen",KEY_V);    _add("look_reset",KEY_R)
 	_add_shift("cycle_language",KEY_L)
+	_add("toggle_shield", KEY_G)
 
 func _add_shift(n: String, k: Key) -> void:
 	if InputMap.has_action(n): return

@@ -11,11 +11,11 @@ const classes: Dictionary = {
 	"M": {"type":"rocky","color":Color(0.25,0.55,0.30),"radius":[ 6.25,12.5 ],"resources":[ 50, 200],"deuterium":[ 30,  80]},
 	"N": {"type":"rocky","color":Color(0.35,0.40,0.45),"radius":[ 3.75, 8.75],"resources":[  5,  40],"deuterium":[  5,  15]},
 	"Y": {"type":"rocky","color":Color(0.80,0.25,0.10),"radius":[ 1.25, 6.25],"resources":[  0,  20],"deuterium":[  0,   5]},
-	"J": {"type":"gas",  "color":Color(0.80,0.65,0.40),"radius":[10.0, 22.5 ],"resources":[  0,   0],"deuterium":[100, 300]},
-	"T": {"type":"gas",  "color":Color(0.85,0.80,0.60),"radius":[12.5, 30.0 ],"resources":[  0,   0],"deuterium":[150, 400]},
-	"6": {"type":"gas",  "color":Color(0.55,0.70,0.80),"radius":[11.25,27.5 ],"resources":[  0,   0],"deuterium":[120, 350]},
-	"7": {"type":"gas",  "color":Color(0.30,0.50,0.85),"radius":[11.25,25.0 ],"resources":[  0,   0],"deuterium":[100, 300]},
-	"9": {"type":"gas",  "color":Color(0.60,0.45,0.30),"radius":[15.0, 35.0 ],"resources":[  0,   0],"deuterium":[200, 500]},
+	"J": {"type":"gas",  "color":Color(0.80,0.65,0.40),"radius":[10.0, 22.5 ],"resources":[  0,   0],"deuterium":[1000, 10000]},
+	"T": {"type":"gas",  "color":Color(0.85,0.80,0.60),"radius":[12.5, 30.0 ],"resources":[  0,   0],"deuterium":[1500, 12500]},
+	"6": {"type":"gas",  "color":Color(0.55,0.70,0.80),"radius":[11.25,27.5 ],"resources":[  0,   0],"deuterium":[2000, 15000]},
+	"7": {"type":"gas",  "color":Color(0.30,0.50,0.85),"radius":[11.25,25.0 ],"resources":[  0,   0],"deuterium":[2500, 18000]},
+	"9": {"type":"gas",  "color":Color(0.60,0.45,0.30),"radius":[15.0, 35.0 ],"resources":[  0,   0],"deuterium":[3000, 20000]},
 }
 
 const CLASS_WEIGHTS: Dictionary = {
