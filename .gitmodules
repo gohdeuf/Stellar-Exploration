@@ -1,3 +1,6 @@
 [submodule "addons/lua-gdextension"]
 	path = addons/lua-gdextension
 	url = https://github.com/gilzoide/lua-gdextension.git
+[submodule "addons/godot-sqlite"]
+	path = addons/godot-sqlite
+	url = https://github.com/2shady4u/godot-sqlite.git

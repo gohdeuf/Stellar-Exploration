@@ -24,9 +24,13 @@ PlanetClassDB="*res://scripts/autoload/PlanetClassDB.gd"
 SectorGenerator="*res://scripts/autoload/SectorGenerator.gd"
 InputSetup="*res://scripts/autoload/InputSetup.gd"
 
+[display]
+
+window/size/mode=3
+
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/lua-gdextension/addons/lua-gdextension/plugin.cfg")
+enabled=PackedStringArray("res://addons/godot-sqlite/demo/addons/godot-sqlite/plugin.cfg", "res://addons/lua-gdextension/addons/lua-gdextension/plugin.cfg")
 
 [rendering]
 
