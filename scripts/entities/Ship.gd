@@ -153,6 +153,7 @@ func _build_model() -> void:
 		var bussard := MeshInstance3D.new()
 		var bm := SphereMesh.new()
 		bm.radius = s * 0.13
+		bm.height = s * 0.26
 		bussard.mesh = bm
 		var bmat := StandardMaterial3D.new()
 		bmat.albedo_color = Color(0.90, 0.08, 0.04)
@@ -163,22 +164,18 @@ func _build_model() -> void:
 		bussard.position = Vector3(float(side) * s * 0.86, -s * 0.04, s * 0.33)
 		add_child(bussard)
 
-		var glow := MeshInstance3D.new()
-		var gm := SphereMesh.new()
-		gm.radius = s * 0.14
-		glow.mesh = gm
 		var gmat := StandardMaterial3D.new()
 		gmat.emission_enabled = true
 		gmat.emission = Color(0.55, 0.80, 1.0)
 		gmat.emission_energy_multiplier = 4.5
-		glow.material_override = gmat
-		glow.position = Vector3(float(side) * s * 0.86, -s * 0.04, s * 1.83)
-		add_child(glow)
+		gmat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		for stripe_angle in [0.0, PI]:
+			add_child(_create_glow_stripe(float(side), stripe_angle, s, gmat))
 
 	var defl := MeshInstance3D.new()
 	var dm := SphereMesh.new()
 	dm.radius = s * 0.20
-	dm.height = s * 0.40
+	dm.height = s * 0.0
 	defl.mesh = dm
 	var dmat := StandardMaterial3D.new()
 	dmat.albedo_color = Color(0.15, 0.35, 0.90)
@@ -188,6 +185,32 @@ func _build_model() -> void:
 	defl.material_override = dmat
 	defl.position = Vector3(0.0, -s * 0.18, s * 0.64)
 	add_child(defl)
+
+func _create_glow_stripe(side: float, angle: float, s: float, material: StandardMaterial3D) -> MeshInstance3D:
+	var radial := Vector3(cos(angle), sin(angle), 0.0)
+	var tangent := Vector3(-sin(angle), cos(angle), 0.0)
+	var z_positions: Array[float] = [s * 0.33, s * 0.485, s * 1.83]
+	var widths: Array[float] = [s * 0.30, s * 0.01, s * 0.01]
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	for i in range(z_positions.size()):
+		var center := Vector3(side * s * 0.86, -s * 0.04, z_positions[i]) + radial * (s * 0.122)
+		vertices.append(center - tangent * widths[i] * 0.5)
+		vertices.append(center + tangent * widths[i] * 0.5)
+		normals.append(radial)
+		normals.append(radial)
+	var indices := PackedInt32Array([0, 1, 2, 1, 3, 2, 2, 3, 4, 3, 5, 4])
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var stripe_mesh := ArrayMesh.new()
+	stripe_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var stripe := MeshInstance3D.new()
+	stripe.mesh = stripe_mesh
+	stripe.material_override = material
+	return stripe
 
 func take_damage(amount: float) -> void:
 	if _shield_system != null and _shield_system.is_active and _shield_system.integrity > 0.0:
