@@ -1,3 +1,17 @@
+## 📦 Git LFS Availability / Verfügbarkeit
+
+This repository uses a self-hosted Git LFS server for 3D models and large assets. To save energy, the LFS storage server automatically shuts down during the night. 
+
+If your `git clone` or `git lfs pull` fails with a connection error, please try again during the active operating hours.
+
+| Day / Tag | Operating Hours / Online-Zeiten (CEST/CET) | Status |
+| :--- | :--- | :--- |
+| **Sunday – Friday** / Sonntag – Freitag | 07:00 – 23:00 | Online |
+| **Saturday** / Samstag | 07:00 – 01:00 (Next day) | Online |
+| **Nightly** / Jede Nacht | *Off-hours* | Offline (Power Saving) |
+
+*Note: The source code on GitHub is always available 24/7. Only the download of large LFS files depends on these hours.*
+
 # Star Trek Sandbox – Godot-Rewrite (v0.2.0)
 
 Engine-Version: Godot **4.3+** (GDScript).
