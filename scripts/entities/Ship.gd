@@ -16,6 +16,8 @@ var _crew_system:   CrewSystem   = null
 var _shield_system: ShieldSystem = null
 var _health: float = 1000.0
 var _max_health: float = 1000.0
+var engine_enabled: bool = true
+var engine_power: float = 1.0
 
 var _orbit_carrier:    Node3D  = null
 var _last_carrier_pos: Vector3 = Vector3.ZERO
@@ -54,8 +56,55 @@ func init_systems(weapon_sys: WeaponSystem, warp_drv: WarpDrive, crew_sys: CrewS
 	_shield_system = shield_sys
 	set_meta("shield_system", shield_sys)
 
+func set_engine_enabled(enabled: bool) -> void:
+	engine_enabled = enabled
+
+func set_engine_power(power: float) -> void:
+	engine_power = clampf(power, 0.0, 1.0)
+
+func get_engine_status() -> Dictionary:
+	return {"enabled": engine_enabled, "power": engine_power, "speed": speed * engine_power}
+
+func get_hull_status() -> Dictionary:
+	return {"health": _health, "max_health": _max_health}
+
+func set_warp_enabled(enabled: bool) -> bool:
+	if _warp_drive == null: return false
+	return _warp_drive.set_active(enabled)
+
+func toggle_warp() -> bool:
+	if _warp_drive == null: return false
+	return _warp_drive.toggle_active()
+
+func get_warp_status() -> Dictionary:
+	return {"active": _warp_drive != null and _warp_drive.is_active()}
+
+func select_weapon(weapon: int) -> bool:
+	return _weapon_system != null and _weapon_system.select_weapon(weapon)
+
+func cycle_weapon(step: int = 1) -> int:
+	if _weapon_system == null: return -1
+	return _weapon_system.cycle_weapon(step)
+
+func fire_weapon() -> bool:
+	return _weapon_system != null and _weapon_system.fire_weapon()
+
+func get_weapon_status() -> Dictionary:
+	if _weapon_system == null: return {"weapon": -1}
+	return {"weapon": _weapon_system.active_weapon}
+
+func set_shield_enabled(enabled: bool) -> void:
+	if _shield_system != null:
+		_shield_system.set_active(enabled)
+
+func get_shield_status() -> Dictionary:
+	if _shield_system == null: return {"active": false, "integrity": 0.0, "max_integrity": 0.0}
+	return _shield_system.get_status()
+
 
 func _physics_process(delta: float) -> void:
+	if bool(get_meta("bridge_walk_active", false)):
+		return
 	_apply_orbit_carry()
 	if _crew_system != null and _crew_system.emergency_ai_active:
 		return
@@ -67,6 +116,7 @@ func _physics_process(delta: float) -> void:
 	_handle_rotation(delta)
 
 func _handle_movement(delta: float) -> void:
+	if not engine_enabled or engine_power <= 0.0: return
 	var speed_mult: float = 1.0
 	if _crew_system != null:
 		speed_mult = _crew_system.speed_modifier
@@ -85,7 +135,7 @@ func _handle_movement(delta: float) -> void:
 	if Input.is_action_pressed("move_down"):
 		dir -= transform.basis.y
 	if dir.length() > 0.0:
-		global_position += dir.normalized() * speed * speed_mult * boost * delta
+		global_position += dir.normalized() * speed * engine_power * speed_mult * boost * delta
 
 func _handle_rotation(delta: float) -> void:
 	var rot_mult: float = 1.0

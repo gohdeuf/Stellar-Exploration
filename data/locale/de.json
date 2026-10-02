@@ -9,7 +9,7 @@
   "help.management": "H - Stations-Verwaltung (D=Einlagern, W=Auslagern)",
   "help.build_mine": "M - Abbauen",
   "help.free_cam": "F10 - Freie Kamera",
-  "help.map": "Tab - Galaxiekarte",
+  "help.map": "Tab - Karte | L ziehen: drehen, R/M ziehen: verschieben, Rad: Zoom, Pos1: zentrieren",
   "help.warp": "J - Alcubierre-Antrieb (100Deu+10AM, 20Deu+1AM/Sek)",
   "help.weapons": "F - PSE | T - Torpedo | X - Waffe wechseln",
   "help.dock": "K - Andocken | N - Notfall-KI",

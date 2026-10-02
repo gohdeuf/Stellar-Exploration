@@ -1,7 +1,31 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 [ext_resource type="Script" path="res://scripts/ui/GalaxyMap.gd" id="1_galaxymap"]
+[sub_resource type="Environment" id="Environment_map"]
+background_mode = 1
+background_color = Color(0.012, 0.021, 0.034, 1)
+
 [node name="GalaxyMap" type="Control"]
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 1
 script = ExtResource("1_galaxymap")
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="ViewportContainer"]
+size = Vector2i(1280, 720)
+
+[node name="MapWorld" type="Node3D" parent="ViewportContainer/SubViewport"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="ViewportContainer/SubViewport/MapWorld"]
+environment = SubResource("Environment_map")
+
+[node name="Camera3D" type="Camera3D" parent="ViewportContainer/SubViewport/MapWorld"]
+current = true

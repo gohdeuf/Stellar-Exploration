@@ -9,7 +9,7 @@
   "help.management": "H - Station Management (D=Deposit, W=Withdraw)",
   "help.build_mine": "M - Mine",
   "help.free_cam": "F10 - Free camera",
-  "help.map": "Tab - Galaxy map",
+  "help.map": "Tab - Galaxy map | Drag L: orbit, R/M: pan, wheel: zoom, Home: recenter",
   "help.warp": "J - Alcubierre Drive (100Deu+10AM, 20Deu+1AM/sec)",
   "help.weapons": "F - PSE | T - Torpedo | X - Cycle weapon",
   "help.dock": "K - Dock | N - Emergency AI",
