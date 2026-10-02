@@ -78,6 +78,16 @@ func _process_warp(delta: float) -> void:
 
 func is_active() -> bool: return is_warping
 
+func set_active(active: bool) -> bool:
+	if active and not is_warping:
+		_engage_warp()
+	elif not active and is_warping:
+		_disengage_warp()
+	return is_warping
+
+func toggle_active() -> bool:
+	return set_active(not is_warping)
+
 func _create_warp_effect() -> Node3D:
 	var effect := Node3D.new(); _rings.clear()
 	for i in range(RING_COUNT):

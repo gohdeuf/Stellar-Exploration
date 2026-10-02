@@ -287,6 +287,13 @@ func get_all_systems() -> Array:
 		})
 	return result
 
+func get_system_revision() -> String:
+	if not _db_ok: return "0:0"
+	db.query("SELECT COUNT(*) AS system_count, COALESCE(MAX(created_at), 0) AS latest_system FROM systems")
+	if db.query_result.is_empty(): return "0:0"
+	var row: Dictionary = db.query_result[0]
+	return "%s:%s" % [row.get("system_count", 0), row.get("latest_system", 0)]
+
 func has_system(sector_id: String) -> bool:
 	if not _db_ok: return false
 	db.query("SELECT 1 FROM systems WHERE sector_id = '%s'" % sector_id)

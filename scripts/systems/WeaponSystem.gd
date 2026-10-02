@@ -16,6 +16,7 @@ const ANTIMATTER_COST    := 50
 
 var ship: Node3D = null
 var active_weapon: int = WeaponType.PSE
+var external_primary_fire: bool = false
 var _torpedo_cooldown: float = 0.0
 var _pse_beam: MeshInstance3D = null
 var _hud: Node = null
@@ -35,7 +36,7 @@ func _process(delta: float) -> void:
 		if _hud: _hud.show_message(Locale.t("weapons.selected", {"weapon": _weapon_name()}))
 
 func _handle_pse(delta: float) -> void:
-	if not Input.is_action_pressed("fire_primary") or active_weapon != WeaponType.PSE:
+	if (not Input.is_action_pressed("fire_primary") and not external_primary_fire) or active_weapon != WeaponType.PSE:
 		_hide_beam(); return
 	if _pse_beam == null:
 		_pse_beam = _create_beam()
@@ -92,3 +93,25 @@ func _weapon_name() -> String:
 		WeaponType.CASCADE_TORPEDO:    return Locale.t("weapons.cascade_torpedo")
 		WeaponType.ANTIMATTER_TORPEDO: return Locale.t("weapons.antimatter_torpedo")
 	return ""
+
+func select_weapon(weapon: int) -> bool:
+	if weapon < WeaponType.PSE or weapon > WeaponType.ANTIMATTER_TORPEDO:
+		return false
+	_hide_beam()
+	active_weapon = weapon
+	return true
+
+func cycle_weapon(step: int = 1) -> int:
+	active_weapon = posmod(active_weapon + step, 3)
+	return active_weapon
+
+func fire_weapon() -> bool:
+	if active_weapon == WeaponType.PSE:
+		_handle_pse(0.0)
+		return true
+	if _torpedo_cooldown > 0.0: return false
+	_fire_torpedo()
+	return true
+
+func set_primary_fire(active: bool) -> void:
+	external_primary_fire = active

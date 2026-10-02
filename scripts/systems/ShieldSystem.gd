@@ -78,6 +78,13 @@ func toggle() -> void:
 		var key: String = "shield.activated" if shield_active else "shield.deactivated"
 		_hud.show_message(Locale.t(key))
 
+func set_active(active: bool) -> void:
+	if shield_active != active:
+		toggle()
+
+func get_status() -> Dictionary:
+	return {"active": shield_active, "integrity": integrity, "max_integrity": MAX_INTEGRITY}
+
 func get_status_text() -> String:
 	if not shield_active:
 		return Locale.t("shield.status_off")

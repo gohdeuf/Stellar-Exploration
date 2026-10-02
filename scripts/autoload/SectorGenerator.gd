@@ -14,8 +14,21 @@ const ORBIT_REFERENCE_PERIOD := 900.0
 
 const MOON_CLEARANCE_FIRST := 20.0
 const MOON_CLEARANCE_NEXT  := 15.0
+const EXOPLANET_DESIGNATIONS := ["b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
 
 var _cache: Dictionary = {}
+var _simulation_time_seconds: float = 0.0
+signal system_updated(system_data: Dictionary)
+
+func _process(delta: float) -> void:
+	_simulation_time_seconds += delta
+
+func get_planet_position(system_position: Vector3, planet_data: Dictionary) -> Vector3:
+	var angle_deg: float = float(planet_data.get("orbit_angle", 0.0)) \
+		+ float(planet_data.get("orbit_speed_deg", 0.0)) * _simulation_time_seconds
+	var angle_rad: float = deg_to_rad(angle_deg)
+	var orbit_radius: float = float(planet_data.get("orbit_radius", 0.0))
+	return system_position + Vector3(cos(angle_rad) * orbit_radius, 0.0, sin(angle_rad) * orbit_radius)
 
 func ensure_sector_generated(sector_id: String) -> Dictionary:
 	if _cache.has(sector_id): return _cache[sector_id]
@@ -26,6 +39,7 @@ func ensure_sector_generated(sector_id: String) -> Dictionary:
 	# NEU: System in die Datenbank speichern
 	if not result.is_empty():
 		GameDatabase.save_system(result)
+		system_updated.emit(result)
 	
 	return result
 
@@ -53,7 +67,9 @@ func _generate_sector(sector_id: String) -> Dictionary:
 		rng.randf_range(0.0, SECTOR_UTILS.SECTOR_SIZE),
 		rng.randf_range(0.0, SECTOR_UTILS.SECTOR_SIZE))
 	var soi: float        = rng.randf_range(SOI_MIN, SOI_MAX)
-	var star_name: String = StarNames.random_name(rng)
+	var names: Dictionary = StarNames.random_names(rng)
+	var star_name: String = names["name"]
+	var legacy_star_name: String = names["legacy_name"]
 	var planet_count      = rng.randi_range(PLANETS_MIN, PLANETS_MAX)
 	var planets: Array    = []; var orbit_radius := 0.0; var prev_planet_radius := 0.0
 	for i in range(planet_count):
@@ -62,8 +78,10 @@ func _generate_sector(sector_id: String) -> Dictionary:
 		var planet_radius: float = rng.randf_range(float(radius_range[0]), float(radius_range[1]))
 		orbit_radius      += prev_planet_radius + planet_radius + rng.randf_range(70.0, 130.0)
 		prev_planet_radius = planet_radius
+		var planet_name: String = "%s %s" % [star_name, _exoplanet_designation(i)]
 		planets.append({
-			"name":            "%s %s" % [star_name, _to_roman(i + 1)],
+			"name":            planet_name,
+			"legacy_name":     "%s %s" % [legacy_star_name, _to_roman(i + 1)],
 			"class":           cls,
 			"orbit_radius":    orbit_radius,
 			"orbit_angle":     rng.randf_range(0.0, 360.0),
@@ -71,8 +89,7 @@ func _generate_sector(sector_id: String) -> Dictionary:
 			"radius":          planet_radius,
 			"resources":       PlanetClassDB.random_resources(rng, cls),
 			"deuterium":       PlanetClassDB.random_deuterium(rng, cls),
-			"moons":           _generate_moons(rng, cls, planet_radius,
-			                   "%s %s" % [star_name, _to_roman(i + 1)]),
+			"moons":           _generate_moons(rng, cls, planet_radius, planet_name),
 		})
 	return {
 		"system_id": sector_id + "_sys", "sector_id": sector_id, "name": star_name,
@@ -185,9 +202,16 @@ func _apply_resource_overrides(sector_id: String, system: Dictionary) -> void:
 	if min_ov.is_empty() and deu_ov.is_empty(): return
 	for planet in system["planets"]:
 		var pname: String = planet["name"]
-		if min_ov.has(pname): planet["resources"]["current"] = float(min_ov[pname])
-		if deu_ov.has(pname) and planet.has("deuterium"):
-			planet["deuterium"]["current"] = float(deu_ov[pname])
+		var legacy_name: String = str(planet.get("legacy_name", ""))
+		if min_ov.has(pname):
+			planet["resources"]["current"] = float(min_ov[pname])
+		elif min_ov.has(legacy_name):
+			planet["resources"]["current"] = float(min_ov[legacy_name])
+		if planet.has("deuterium"):
+			if deu_ov.has(pname):
+				planet["deuterium"]["current"] = float(deu_ov[pname])
+			elif deu_ov.has(legacy_name):
+				planet["deuterium"]["current"] = float(deu_ov[legacy_name])
 
 func load_sector_data_safe(sector_id: String) -> Dictionary:
 	return GameDatabase.load_sector_data(sector_id)
@@ -198,3 +222,7 @@ func _to_roman(num: int) -> String:
 	for i in range(vals.size()):
 		while n >= vals[i]: result += syms[i]; n -= vals[i]
 	return result
+
+func _exoplanet_designation(index: int) -> String:
+	if index < EXOPLANET_DESIGNATIONS.size(): return EXOPLANET_DESIGNATIONS[index]
+	return "planet-%d" % (index + 1)

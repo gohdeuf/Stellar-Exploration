@@ -74,6 +74,103 @@ Engine-Version: Godot **4.3+** (GDScript).
 | Shift+L | Sprache wechseln |
 | Esc | Beenden (speichert) |
 
+
+## Lua-Schnittstellen fuer Schiffs-Systeme
+
+Die System-API ist als oeffentliche GDScript-Schnittstelle am `Ship` vorhanden
+und kann aus Lua ueber eine Referenz auf den Spieler-Node aufgerufen werden.
+Das Projekt legt aktuell keine globale Lua-Variable namens `ship` an. Ein Lua-
+Controller muss diese Referenz beim Start erhalten oder selbst aus dem Szenen-
+Baum beziehen.
+
+Lua verwendet fuer Godot-Methoden den ueblichen Doppelpunkt-Aufruf:
+
+```lua
+ship:set_engine_power(0.75)
+local status = ship:get_engine_status()
+```
+
+### Impulsantrieb
+
+```lua
+ship:set_engine_enabled(true)
+ship:set_engine_power(1.0) -- Werte von 0.0 bis 1.0
+
+local engine = ship:get_engine_status()
+-- engine.enabled, engine.power, engine.speed
+```
+
+`set_engine_power(0.0)` stoppt den normalen Impulsflug. Warp wird separat
+gesteuert. Der normale Ressourcenverbrauch des Spiels bleibt aktiv.
+
+### Warp-Antrieb
+
+```lua
+local warp_active = ship:set_warp_enabled(true)
+ship:set_warp_enabled(false)
+ship:toggle_warp()
+
+local warp = ship:get_warp_status()
+-- warp.active
+```
+
+Das Aktivieren verwendet weiterhin die vorhandenen Deuterium- und
+Antimaterie-Kosten. Bei fehlenden Ressourcen wird Warp nicht aktiviert.
+
+### Waffen
+
+```lua
+-- 0 = PSE, 1 = Kaskaden-Torpedo, 2 = Antimaterie-Torpedo
+ship:select_weapon(0)
+ship:cycle_weapon(1)
+ship:fire_weapon() -- Torpedo als Einzelaktion; PSE startet einen Schusszyklus
+
+local weapons = ship:get_node("WeaponSystem")
+weapons:set_primary_fire(true)  -- PSE-Dauerfeuer an
+weapons:set_primary_fire(false) -- PSE-Dauerfeuer aus
+
+local weapon = ship:get_weapon_status()
+-- weapon.weapon: 0, 1 oder 2
+```
+
+Antimaterie-Torpedos verbrauchen weiterhin die bestehende Menge von 50
+Antimaterie pro Schuss. Die Torpedo-Abklingzeit wird ebenfalls eingehalten.
+
+### Schilde und Huelle
+
+```lua
+ship:set_shield_enabled(true)
+ship:set_shield_enabled(false)
+
+local shields = ship:get_shield_status()
+-- shields.active, shields.integrity, shields.max_integrity
+
+local hull = ship:get_hull_status()
+-- hull.health, hull.max_health
+```
+
+### Beispiel: einfacher KI-Zyklus
+
+```lua
+function control_ship(ship)
+  local warp = ship:get_warp_status()
+  local engine = ship:get_engine_status()
+  local shields = ship:get_shield_status()
+
+  if engine.speed < 50.0 then
+    ship:set_engine_power(1.0)
+  end
+
+  if not shields.active or shields.integrity < 25.0 then
+    ship:set_shield_enabled(true)
+  end
+
+  if not warp.active then
+    ship:set_warp_enabled(true)
+  end
+end
+```
+
 ## Projektstruktur
 
 ```
@@ -87,7 +184,8 @@ scripts/
   main/               Main, PlayerActions
   systems/            WeaponSystem, WarpDrive, DockingSystem, CrewSystem  [NEU]
   ui/                 GalaxyMap, HelpOverlay, InventoryHUD, SOINotification,
-                      TouchControls, TouchJoystick, WorldSeedDialog
+                      BridgeDirectionIndicator, TouchControls, TouchJoystick,
+                      WorldSeedDialog
   world/              WorldManager, SOITracker
   station/            station_connecter_1
 scenes/               Minimal-Szenen (.tscn Stubs)
