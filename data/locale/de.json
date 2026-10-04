@@ -62,5 +62,6 @@
   "reactor.am_on":"Schiff-Reaktor: AM-Produktion AKTIV","reactor.am_off":"Schiff-Reaktor: AM-Produktion GESTOPPT",
   "part.mining_drill": "Abbau-Bohrer",
   "station.orbital": "[ORBIT]",
-  "help.bridge": "C - Brückenansicht (Erste-Person, kein Gimbal-Lock)"
+  "help.bridge": "C - Brückenansicht (Erste-Person, kein Gimbal-Lock)",
+  "shield.system": "G - Schildsystem aktivieren/deaktivieren"
 }

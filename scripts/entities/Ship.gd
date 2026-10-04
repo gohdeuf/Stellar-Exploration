@@ -55,6 +55,12 @@ func init_systems(weapon_sys: WeaponSystem, warp_drv: WarpDrive, crew_sys: CrewS
 	_crew_system = crew_sys
 	_shield_system = shield_sys
 	set_meta("shield_system", shield_sys)
+	
+	# Sucht das eben generierte Mesh und übergibt es dem ShieldSystem
+	if _shield_system != null and has_node("ShieldMesh"):
+		_shield_system.shield_mesh = get_node("ShieldMesh") as MeshInstance3D
+		_shield_system._update_mesh_visibility()
+
 
 func set_engine_enabled(enabled: bool) -> void:
 	engine_enabled = enabled
@@ -235,6 +241,32 @@ func _build_model() -> void:
 	defl.material_override = dmat
 	defl.position = Vector3(0.0, -s * 0.18, s * 0.64)
 	add_child(defl)
+
+		# --- VISUELLES SCHILDSYSTEM HIER HINZUFÜGEN ---
+	var shield_mesh := MeshInstance3D.new()
+	shield_mesh.name = "ShieldMesh"
+	
+	var sm_shield := SphereMesh.new()
+	# Mathematisch angepasst an deine Schiff-Proportionen (umschließt Untertasse und Gondeln)
+	sm_shield.radius = s * 1.8 
+	sm_shield.height = s * 3.6
+	shield_mesh.mesh = sm_shield
+	
+	# Verschiebung zur Mitte des Rumpfes (Z-Achse nach hinten verschoben wegen den Gondeln)
+	shield_mesh.position = Vector3(0.0, -s * 0.05, s * 0.8)
+	
+	# Erstellung des ShaderMaterials direkt über Code
+	var shader_mat := ShaderMaterial.new()
+	shader_mat.shader = load("res://assets/ship/shader/plasma_shield.gdshader") # Pfad zu deinem Shader-File
+	shield_mesh.material_override = shader_mat
+	
+	add_child(shield_mesh)
+	
+	# Falls das Schildsystem bereits initialisiert wurde, verknüpfen wir das Mesh sofort
+	if _shield_system != null:
+		_shield_system.shield_mesh = shield_mesh
+		_shield_system._update_mesh_visibility()
+
 
 func _create_glow_stripe(side: float, angle: float, s: float, material: StandardMaterial3D) -> MeshInstance3D:
 	var radial := Vector3(cos(angle), sin(angle), 0.0)
