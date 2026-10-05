@@ -36,6 +36,9 @@ func _start_game() -> void:
 	ship.add_child(bridge_view)
 	camera_rig.set_bridge_view(bridge_view)
 	bridge_view.set_ship_ref(ship)
+	var bridge_indicator := preload("res://scripts/ui/BridgeDirectionIndicator.gd").new()
+	add_child(bridge_indicator)
+	bridge_indicator.set_bridge_view(bridge_view)
 
 	world_manager = WorldManager.new(); add_child(world_manager); world_manager.set_player(ship)
 	soi_tracker   = SOITracker.new();   add_child(soi_tracker);   soi_tracker.set_player(ship)

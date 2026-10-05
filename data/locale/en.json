@@ -9,7 +9,7 @@
   "help.management": "H - Station Management (D=Deposit, W=Withdraw)",
   "help.build_mine": "M - Mine",
   "help.free_cam": "F10 - Free camera",
-  "help.map": "Tab - Galaxy map",
+  "help.map": "Tab - Galaxy map | Drag L: orbit, R/M: pan, wheel: zoom, Home: recenter",
   "help.warp": "J - Alcubierre Drive (100Deu+10AM, 20Deu+1AM/sec)",
   "help.weapons": "F - PSE | T - Torpedo | X - Cycle weapon",
   "help.dock": "K - Dock | N - Emergency AI",
@@ -62,5 +62,6 @@
   "reactor.am_on":"Ship Reactor: AM production ACTIVE","reactor.am_off":"Ship Reactor: AM production STOPPED",
   "part.mining_drill": "Mining Drill",
   "station.orbital": "[ORBIT]",
-  "help.bridge": "C - Bridge view (first-person, no gimbal lock)"
+  "help.bridge": "C - Bridge view (first-person, no gimbal lock)",
+  "shield.system": "G - Shield system activate/deactivate"
 }
