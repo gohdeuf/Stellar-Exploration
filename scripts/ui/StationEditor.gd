@@ -81,7 +81,7 @@ func _build_ghost() -> void:
 	_ghost = MeshInstance3D.new(); var bm := BoxMesh.new(); _ghost.mesh = bm
 	_ghost_mat = StandardMaterial3D.new(); _ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_ghost_mat.emission_enabled = true; _ghost.material_override = _ghost_mat; _ghost.visible = false
-	get_tree().root.call_deferred("add_child", _ghost)
+	ship.get_parent().call_deferred("add_child", _ghost)
 
 func _build_ui() -> void:
 	_ui = Control.new()
@@ -159,11 +159,14 @@ func _update_snap() -> void:
 
 	_snap_free = false
 	var station_positions: Array = []
-	for n in station_nodes: station_positions.append(n.global_position)
+	for n in station_nodes:
+		station_positions.append(n.global_position)
 	var best_pt: Vector3 = Vector3.ZERO; var best_dist: float = INF
 
 	for node in station_nodes:
-		var scr = node.get_script(); if scr==null: continue
+		var scr = node.get_script()
+		if scr == null:
+			continue
 		var offsets: Array = PART_OFFSETS.get(scr.resource_path, [])
 		for off in offsets:
 			var world_pt: Vector3 = node.global_position + off
@@ -252,7 +255,7 @@ func _place_module() -> void:
 		# Teil einer bestehenden Orbitalstation
 		var local_off: Vector3 = existing_orbiter.to_local(_snap_point)
 		existing_orbiter.add_child(inst); inst.position = local_off
-		var coords := SECTOR_UTILS.world_to_sector_coords(existing_orbiter.global_position)
+		var coords := WorldCoordinates.to_sector_coords(existing_orbiter.global_position)
 		var sector_id := SECTOR_UTILS.sector_coords_to_id(coords.x, coords.y, coords.z)
 		GameDatabase.add_orbital_station_part(sector_id, str(existing_orbiter.get("orbit_id")), part_name, local_off)
 	elif _orbit_planet != null and _orbit_planet is Planet:
@@ -260,13 +263,18 @@ func _place_module() -> void:
 		_create_orbital_station_first_part(inst, part_name)
 	else:
 		# Feste Platzierung
-		var coords := SECTOR_UTILS.world_to_sector_coords(_snap_point)
+		var coords := WorldCoordinates.to_sector_coords(_snap_point)
 		var sector_id := SECTOR_UTILS.sector_coords_to_id(coords.x, coords.y, coords.z)
 		var container: Node3D = world_manager.get_sector_container(sector_id)
 		if container != null: container.add_child(inst)
-		else: get_tree().root.add_child(inst)
+		else: world_manager.add_child(inst)
 		inst.global_position = _snap_point
-		GameDatabase.add_station(sector_id, {"pos_x":_snap_point.x,"pos_y":_snap_point.y,"pos_z":_snap_point.z,"type":part_name})
+		var world_snap_point := WorldCoordinates.to_world_position(_snap_point)
+		GameDatabase.add_station(sector_id, {
+			"pos_x": world_snap_point.x,
+			"pos_y": world_snap_point.y,
+			"pos_z": world_snap_point.z,
+			"type": part_name})
 
 	if _hud: _hud.show_message(Locale.t("actions.part_built",{"part":Locale.t("part."+part_name)}))
 	_update_snap()
@@ -279,13 +287,13 @@ func _create_orbital_station_first_part(inst: Node3D, part_name: String) -> void
 	var dir: Vector3    = diff.normalized() if diff.length() > 0.01 else Vector3.RIGHT
 	var orbit_angle: float = rad_to_deg(atan2(dir.z, dir.x))
 	var planet_name: String = str(planet.planet_data.get("name","Unknown"))
-	var coords := SECTOR_UTILS.world_to_sector_coords(planet.global_position)
+	var coords := WorldCoordinates.to_sector_coords(planet.global_position)
 	var sector_id := SECTOR_UTILS.sector_coords_to_id(coords.x, coords.y, coords.z)
 	var orbit_id: String = "orbit_%s_%d" % [planet_name.replace(" ","_"), Time.get_ticks_msec() % 100000]
 	var container: Node3D = world_manager.get_sector_container(sector_id)
 	var orbiter := StationOrbiter.new()
 	if container != null: container.add_child(orbiter)
-	else: get_tree().root.add_child(orbiter)
+	else: world_manager.add_child(orbiter)
 	orbiter.orbit_id = orbit_id
 	orbiter.setup(_orbit_planet, orbit_r, orbit_angle, ORBIT_SPEED_DEG)
 	orbiter.add_child(inst); inst.position = Vector3.ZERO

@@ -30,7 +30,7 @@ jobs:
 
       - name: Install Semgrep & GDToolkit
         run: |
-          python -m pip install semgrep gdtoolkit
+          python -m pip install semgrep "gdtoolkit==4.5.0"
 
       - name: Run Semgrep (Security Scan)
         run: >-
