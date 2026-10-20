@@ -26,3 +26,4 @@ This roadmap outlines the core goals and milestones for the upcoming versions of
 * **Solar Antimatter Collection:** Stations orbiting close to stars utilizing high energy to harvest Antimatter.
 * **In-Game Mod Catalog:** Safe Lua-only addon repository fetched dynamically via GitHub API.
 * **Direct-IP Multiplayer:** Serverless cooperative gameplay via direct connection.
+* **Land and Build on Planets:** You can enter any planet and explore it and build stations on that planet.
