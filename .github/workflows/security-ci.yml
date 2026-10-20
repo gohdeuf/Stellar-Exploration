@@ -9,29 +9,29 @@ on:
 jobs:
   security-and-lint:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
-      # 1. Code inkl. kompletter Historie aus dem Repository holen
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2. Secret-Scanning
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 3. Python für Semgrep und GDScript-Tools aufsetzen
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # 4. Semgrep und GDScript-Linter installieren
       - name: Install Semgrep & GDToolkit
         run: |
           python -m pip install semgrep gdtoolkit
 
-      # 5. Semgrep Security Scan (Add-ons ausgeschlossen)
       - name: Run Semgrep (Security Scan)
         run: >-
           semgrep scan
@@ -41,6 +41,5 @@ jobs:
           --exclude addons/godot-sqlite
           --exclude addons/lua-gdextension
 
-      # 6. GDScript Linter
       - name: Run GDScript Linter
         run: gdlint scripts/
