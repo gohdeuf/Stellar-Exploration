@@ -16,6 +16,16 @@ If your `git clone` or `git lfs pull` fails with a connection error, please try 
 
 Engine-Version: Godot **4.3+** (GDScript).
 
+## VR (OpenXR)
+
+Das Spiel aktiviert OpenXR automatisch, wenn ein OpenXR-Runtime (zum Beispiel
+SteamVR oder Meta Quest Link) aktiv und ein Headset verfügbar ist. In VR wird
+die vorhandene Kamera stereoskopisch gerendert und die Kopfbewegung erfasst.
+Ohne verfügbares Headset startet das Spiel wie gewohnt im Desktop-Modus.
+
+Die bisherige Tastatur-/Maussteuerung bleibt bestehen; VR-Controller und
+dedizierte VR-Interaktionen werden noch nicht unterstützt.
+
 ## Projekt oeffnen
 
 1. Godot 4.3 oder neuer starten.
