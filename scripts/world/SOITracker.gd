@@ -111,7 +111,8 @@ func find_active_system(ship_pos: Vector3) -> Dictionary:
 	var best: Dictionary = {}
 	var best_dist: float = INF
 	for sys in SectorGenerator.get_cached_systems():
-		var d: float = SectorUtils.distance_3d(ship_pos, sys["position"])
+		var system_local_position: Vector3 = WorldCoordinates.to_local_position(sys["position"])
+		var d: float = SectorUtils.distance_3d(ship_pos, system_local_position)
 		if d <= sys["sphere_of_influence"] and d < best_dist:
 			best = sys; best_dist = d
 	return best
