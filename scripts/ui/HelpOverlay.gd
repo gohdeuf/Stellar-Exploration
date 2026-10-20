@@ -15,7 +15,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _refresh_text() -> void: _label.text = _help_text()
 
 func _help_text() -> String:
-	return "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s" % [
+	# ACHTUNG: Die Anzahl der Einträge unten MUSS exakt mit den \n%s übereinstimmen!
+	return "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s" % [
 		Locale.t("help.title"),
 		Locale.t("help.move"),
 		Locale.t("help.pitch_yaw"),
@@ -30,6 +31,7 @@ func _help_text() -> String:
 		Locale.t("help.map"),
 		Locale.t("help.warp"),
 		Locale.t("help.weapons"),
+		Locale.t("shield.system"),
 		Locale.t("help.dock"),
 		Locale.t("help.ship_reactor"),
 		Locale.t("help.quit"),

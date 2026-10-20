@@ -16,6 +16,8 @@ func _ready() -> void:
 	_add("dock_station",KEY_K);      _add("emergency_ai_toggle",KEY_N)
 	_add("toggle_ship_am",KEY_P);    _add("toggle_bridge",KEY_C)
 	_add("toggle_vscreen",KEY_V);    _add("look_reset",KEY_R)
+	_add("next_vscreen_direction",KEY_Z)
+	_add_shift("previous_vscreen_direction",KEY_Z)
 	_add_shift("cycle_language",KEY_L)
 	_add("toggle_shield", KEY_G)
 

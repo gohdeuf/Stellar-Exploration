@@ -14,15 +14,29 @@ var shield_active: bool = true
 var _ship: Node3D = null
 var _hud: Node = null
 
+# Visuelle Schildkomponenten
+var shield_mesh: MeshInstance3D = null
+var _hit_intensity: float = 0.0
+
 func setup(ship: Node3D, hud: Node = null) -> void:
 	_ship = ship
 	_hud = hud
+	# Sucht automatisch nach einer MeshInstance3D namens "ShieldMesh" im selben Raumschiff
+	if _ship and _ship.has_node("ShieldMesh"):
+		shield_mesh = _ship.get_node("ShieldMesh") as MeshInstance3D
+		_update_mesh_visibility()
 
 func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("toggle_shield"):
 		toggle()
 	if _ship == null:
 		return
+	
+	# Treffer-Leuchten langsam verblassen lassen (Animation per Code)
+	if _hit_intensity > 0.0:
+		_hit_intensity = maxf(0.0, _hit_intensity - 3.0 * delta)
+		_update_shader_parameters()
+
 	if not shield_active:
 		return  # Aus = kein Deuterium-Verbrauch
 
@@ -45,6 +59,7 @@ func _try_idle_cost(delta: float) -> void:
 		GameDatabase.spend_resource("deuterium", int(idle_cost))
 	else:
 		shield_active = false
+		_update_mesh_visibility()
 		if _hud != null:
 			_hud.show_message(Locale.t("shield.no_deuterium"))
 
@@ -53,9 +68,14 @@ func intercept_torpedo() -> bool:
 	if not shield_active or integrity <= 0.0:
 		return false
 	integrity -= TORPEDO_DAMAGE
+	
+	# Visueller Treffereffekt (Starkes Aufleuchten)
+	_trigger_hit_effect(1.0)
+	
 	if integrity <= 0.0:
 		integrity = 0.0
 		shield_active = false
+		_update_mesh_visibility()
 		if _hud != null:
 			_hud.show_message(Locale.t("shield.collapsed"))
 	return true
@@ -65,18 +85,49 @@ func absorb_pse(raw_damage: float, delta: float) -> float:
 	if not shield_active or integrity <= 0.0:
 		return raw_damage
 	integrity -= PSE_DAMAGE_PER_SEC * delta
+	
+	# Kontinuierliches leichtes Flackern bei PSE-Dauerbeschuss
+	_trigger_hit_effect(0.4)
+	
 	if integrity <= 0.0:
 		integrity = 0.0
 		shield_active = false
+		_update_mesh_visibility()
 		if _hud != null:
 			_hud.show_message(Locale.t("shield.collapsed"))
 	return raw_damage * PSE_HULL_DAMAGE_PCT
 
 func toggle() -> void:
 	shield_active = not shield_active
+	_update_mesh_visibility()
 	if _hud != null:
 		var key: String = "shield.activated" if shield_active else "shield.deactivated"
 		_hud.show_message(Locale.t(key))
+
+func set_active(active: bool) -> void:
+	if shield_active != active:
+		toggle()
+
+func _trigger_hit_effect(intensity: float) -> void:
+	_hit_intensity = intensity
+	_update_shader_parameters()
+
+func _update_mesh_visibility() -> void:
+	if shield_mesh:
+		shield_mesh.visible = shield_active
+		if shield_active:
+			_update_shader_parameters()
+
+func _update_shader_parameters() -> void:
+	if shield_mesh and shield_mesh.visible:
+		var mat = shield_mesh.get_active_material(0)
+		if mat and mat is ShaderMaterial:
+			# Schickt die Werte live an deinen Plasma-Shader
+			mat.set_shader_parameter("hit_intensity", _hit_intensity)
+			mat.set_shader_parameter("integrity_pct", integrity / MAX_INTEGRITY)
+
+func get_status() -> Dictionary:
+	return {"active": shield_active, "integrity": integrity, "max_integrity": MAX_INTEGRITY}
 
 func get_status_text() -> String:
 	if not shield_active:

@@ -4,13 +4,13 @@ extends Node
 # Referenz: Erde (M-Klasse) Mittelwert = 10.0 Units.
 # Gas-Riesen: J-Klasse bis 22.5, T bis 30, 9 bis 35 Units.
 const classes: Dictionary = {
-	"D": {"type":"rocky","color":Color(0.55,0.52,0.48),"radius":[ 2.5,  6.25],"resources":[  0,  30],"deuterium":[  0,   5]},
-	"H": {"type":"rocky","color":Color(0.75,0.45,0.15),"radius":[ 3.75,10.0 ],"resources":[ 10,  80],"deuterium":[  5,  20]},
-	"K": {"type":"rocky","color":Color(0.65,0.55,0.35),"radius":[ 5.0, 10.0 ],"resources":[ 20, 100],"deuterium":[ 10,  30]},
-	"L": {"type":"rocky","color":Color(0.50,0.60,0.30),"radius":[ 5.0, 11.25],"resources":[ 30, 120],"deuterium":[ 15,  40]},
-	"M": {"type":"rocky","color":Color(0.25,0.55,0.30),"radius":[ 6.25,12.5 ],"resources":[ 50, 200],"deuterium":[ 30,  80]},
-	"N": {"type":"rocky","color":Color(0.35,0.40,0.45),"radius":[ 3.75, 8.75],"resources":[  5,  40],"deuterium":[  5,  15]},
-	"Y": {"type":"rocky","color":Color(0.80,0.25,0.10),"radius":[ 1.25, 6.25],"resources":[  0,  20],"deuterium":[  0,   5]},
+	"D": {"type":"rocky","color":Color(0.55,0.52,0.48),"atmosphere":Color(0.55,0.66,0.78,0.045),"radius":[ 2.5,  6.25],"resources":[  0,  300],"deuterium":[  0,   5]},
+	"H": {"type":"rocky","color":Color(0.75,0.45,0.15),"atmosphere":Color(0.96,0.68,0.32,0.18),"radius":[ 3.75,10.0 ],"resources":[ 10,  800],"deuterium":[  5,  20]},
+	"K": {"type":"rocky","color":Color(0.65,0.55,0.35),"atmosphere":Color(0.78,0.70,0.52,0.09),"radius":[ 5.0, 10.0 ],"resources":[ 20, 1000],"deuterium":[ 10,  30]},
+	"L": {"type":"rocky","color":Color(0.50,0.60,0.30),"atmosphere":Color(0.67,0.76,0.48,0.08),"radius":[ 5.0, 11.25],"resources":[ 30, 1200],"deuterium":[ 15,  40]},
+	"M": {"type":"rocky","color":Color(0.25,0.55,0.30),"atmosphere":Color(0.42,0.70,0.98,0.15),"radius":[ 6.25,12.5 ],"resources":[ 50, 2000],"deuterium":[ 30,  80]},
+	"N": {"type":"rocky","color":Color(0.35,0.40,0.45),"atmosphere":Color(0.57,0.78,0.55,0.11),"radius":[ 3.75, 8.75],"resources":[  5,  400],"deuterium":[  5,  15]},
+	"Y": {"type":"rocky","color":Color(0.80,0.25,0.10),"atmosphere":Color(0.96,0.34,0.12,0.13),"radius":[ 1.25, 6.25],"resources":[  0,  200],"deuterium":[  0,   5]},
 	"J": {"type":"gas",  "color":Color(0.80,0.65,0.40),"radius":[10.0, 22.5 ],"resources":[  0,   0],"deuterium":[1000, 10000]},
 	"T": {"type":"gas",  "color":Color(0.85,0.80,0.60),"radius":[12.5, 30.0 ],"resources":[  0,   0],"deuterium":[1500, 12500]},
 	"6": {"type":"gas",  "color":Color(0.55,0.70,0.80),"radius":[11.25,27.5 ],"resources":[  0,   0],"deuterium":[2000, 15000]},

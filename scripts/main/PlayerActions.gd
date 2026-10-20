@@ -52,7 +52,7 @@ func _handle_mining(delta: float) -> void:
 	if _persist_timer >= PERSIST_INTERVAL: _persist_timer=0.0; _persist_mining(_mining_planet)
 
 func _persist_mining(planet: Planet) -> void:
-	var coords    := SectorUtils.world_to_sector_coords(planet.global_position)
+	var coords    := WorldCoordinates.to_sector_coords(planet.global_position)
 	var sector_id := SectorUtils.sector_coords_to_id(coords.x, coords.y, coords.z)
 	GameDatabase.save_planet_state(sector_id, planet.planet_data["name"],
 		planet.planet_data["resources"]["current"],
@@ -61,7 +61,9 @@ func _persist_mining(planet: Planet) -> void:
 func _find_nearby_planet() -> Planet:
 	var best: Planet = null; var best_dist := INF
 	for node in get_tree().get_nodes_in_group("planets"):
-		var planet := node as Planet; if planet == null: continue
+		var planet := node as Planet
+		if planet == null:
+			continue
 		var pr: float = planet.planet_data.get("radius",0.0)
 		var dist: float = ship.global_position.distance_to(planet.global_position) - pr
 		if dist <= MINING_RANGE and dist < best_dist: best=planet; best_dist=dist
