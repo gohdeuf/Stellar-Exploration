@@ -10,21 +10,19 @@ jobs:
   security-and-lint:
     runs-on: ubuntu-latest
     steps:
-      # 1. Code aus dem Repository holen
+      # 1. Code inkl. kompletter Historie aus dem Repository holen (Pinned SHA für checkout@v4)
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
 
-      # 2. Secret-Scanning (Sucht nach API-Keys/Passwörtern)
+      # 2. Secret-Scanning (Pinned SHA für gitleaks-action@v2)
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: gitleaks/gitleaks-action@655d6438787b282924a132cb0db4ae5b71dbcc24 # v2.3.0 (oder aktueller SHA)
 
-      # 3. Python für Semgrep und GDScript-Tools aufsetzen
+      # 3. Python für Semgrep und GDScript-Tools aufsetzen (Pinned SHA für setup-python@v5)
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b3b955042233f43506 # v5.3.0
         with:
           python-version: '3.11'
 
