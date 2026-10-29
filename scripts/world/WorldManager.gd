@@ -14,17 +14,22 @@ var npc_ship_scene:         PackedScene = preload("res://scenes/NPCShip.tscn")
 const SECTOR_UTILS := preload("res://scripts/autoload/SectorUtils.gd")
 
 var player: Node3D
+var nebula_shader: Shader
+var _nebula_material: Material
 var _current_sector_id: String = ""
 var _loaded_sectors: Dictionary = {}
 
 func set_player(node: Node3D) -> void: player = node
+func set_nebula_shader(shader: Shader) -> void:
+	nebula_shader = shader
+	_nebula_material = null
 
 func get_sector_container(sector_id: String) -> Node3D:
 	return _loaded_sectors.get(sector_id, null)
 
 func _process(_delta: float) -> void:
 	if player == null: return
-	var coords: Vector3i  = SECTOR_UTILS.world_to_sector_coords(player.global_position)
+	var coords: Vector3i  = WorldCoordinates.to_sector_coords(player.global_position)
 	var sector_id: String = SECTOR_UTILS.sector_coords_to_id(coords.x, coords.y, coords.z)
 	if sector_id != _current_sector_id:
 		_current_sector_id = sector_id; _on_sector_changed(sector_id)
@@ -44,10 +49,12 @@ func _load_sector(sector_id: String) -> void:
 	var container := Node3D.new(); container.name = sector_id
 	add_child(container); _loaded_sectors[sector_id] = container
 	var system: Dictionary = SectorGenerator.ensure_sector_generated(sector_id)
+	_add_sector_nebula(container, sector_id)
 	if system.is_empty(): return
 
 	var star := star_scene.instantiate(); container.add_child(star)
-	star.global_position = system["position"]; star.set_system_name(system["name"])
+	star.global_position = WorldCoordinates.to_local_position(system["position"])
+	star.set_system_name(system["name"])
 
 	for pd in system["planets"]:
 		var planet := planet_scene.instantiate(); container.add_child(planet)
@@ -65,8 +72,9 @@ func _load_sector(sector_id: String) -> void:
 	for sd in sector_save.get("stations", []):
 		var inst: Node3D = _instantiate_station_part(sd.get("type","station"))
 		container.add_child(inst)
-		inst.global_position = Vector3(
+		var station_world_position := Vector3(
 			float(sd.get("pos_x",0)), float(sd.get("pos_y",0)), float(sd.get("pos_z",0)))
+		inst.global_position = WorldCoordinates.to_local_position(station_world_position)
 
 	for os_data in sector_save.get("orbital_stations", []):
 		var planet_name: String = str(os_data.get("planet_name",""))
@@ -87,8 +95,37 @@ func _load_sector(sector_id: String) -> void:
 
 	for sh in sector_save.get("ships", []):
 		var npc := npc_ship_scene.instantiate(); container.add_child(npc)
-		npc.global_position = Vector3(
+		var npc_world_position := Vector3(
 			float(sh.get("pos_x",0)), float(sh.get("pos_y",0)), float(sh.get("pos_z",0)))
+		npc.global_position = WorldCoordinates.to_local_position(npc_world_position)
+
+func _add_sector_nebula(container: Node3D, sector_id: String) -> void:
+	var nebulae: Array[Dictionary] = SectorGenerator.get_sector_nebulae(sector_id)
+	for index in range(nebulae.size()):
+		var nebula: Dictionary = nebulae[index]
+		var volume := FogVolume.new()
+		volume.name = "NebulaFogVolume_%d" % index
+		volume.shape = RenderingServer.FOG_VOLUME_SHAPE_ELLIPSOID
+		volume.size = nebula["size"]
+		volume.material = _get_nebula_material()
+		container.add_child(volume)
+		volume.global_position = WorldCoordinates.to_local_position(nebula["position"])
+
+func _get_nebula_material() -> Material:
+	if _nebula_material != null:
+		return _nebula_material
+
+	if nebula_shader != null:
+		var shader_material := ShaderMaterial.new()
+		shader_material.shader = nebula_shader
+		_nebula_material = shader_material
+	else:
+		var fog_material := FogMaterial.new()
+		fog_material.albedo = Color(0.42, 0.52, 0.72)
+		fog_material.density = 0.04
+		_nebula_material = fog_material
+
+	return _nebula_material
 
 func _find_planet_by_name(container: Node3D, planet_name: String) -> Node3D:
 	for child in container.get_children():
