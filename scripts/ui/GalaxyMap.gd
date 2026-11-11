@@ -8,8 +8,11 @@ const GRID_HALF_SIZE := 250.0
 
 enum DragMode { NONE, ORBIT, PAN }
 
+signal course_selected(target_name: String, world_position: Vector3)
+
 @export var refresh_interval: float = 5.0
 
+@onready var _viewport_container: SubViewportContainer = $ViewportContainer
 @onready var _subviewport: SubViewport = $ViewportContainer/SubViewport
 @onready var _map_world: Node3D = $ViewportContainer/SubViewport/MapWorld
 @onready var _camera: Camera3D = $ViewportContainer/SubViewport/MapWorld/Camera3D
@@ -30,6 +33,7 @@ var _last_planet_cache_position: Vector3 = Vector3.ZERO
 
 var _map_content: Node3D
 var _system_root: Node3D
+var _nebula_root: Node3D
 var _station_root: Node3D
 var _planet_root: Node3D
 var _reference_grid: MeshInstance3D
@@ -38,21 +42,31 @@ var _height_guides: MeshInstance3D
 var _player_marker: Node3D
 var _planet_markers: Array = []
 var _station_markers: Array = []
+var _system_markers: Array = []
 var _readout: Label
+var _nebula_toggle_button: Button
+var _nebula_markers_visible := true
+var _course_root: Node3D
+var _course_marker: MeshInstance3D
+var _course_line: MeshInstance3D
+var _course_world_position := Vector3.ZERO
+var _has_course := false
 
 func _ready() -> void:
-	visible = false
+	_set_map_visible(false)
 	mouse_filter = Control.MOUSE_FILTER_PASS
-	_subviewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	_map_content = Node3D.new()
 	_map_content.name = "MapContent"
 	_map_world.add_child(_map_content)
 	_system_root = Node3D.new(); _system_root.name = "Systems"
+	_nebula_root = Node3D.new(); _nebula_root.name = "Nebulae"
 	_station_root = Node3D.new(); _station_root.name = "Stations"
 	_planet_root = Node3D.new(); _planet_root.name = "Planets"
 	_map_content.add_child(_system_root)
+	_map_content.add_child(_nebula_root)
 	_map_content.add_child(_station_root)
 	_map_content.add_child(_planet_root)
+	_build_course_marker()
 	_build_reference_grid()
 	_build_axes()
 	_build_player_marker()
@@ -69,25 +83,48 @@ func _ready() -> void:
 func set_player(node: Node3D) -> void:
 	player = node
 	_update_map_origin()
+	_rebuild_nebula_markers()
 	_rebuild_station_markers()
 	_rebuild_planet_markers()
 	_rebuild_height_guides()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_map"):
-		visible = not visible
+		_set_map_visible(not visible)
 		get_viewport().set_input_as_handled()
-		if visible: _refresh_systems()
 		return
-	if not visible: return
+	if not visible or not event is InputEventKey:
+		return
+	var key_event := event as InputEventKey
+	if key_event.pressed and not key_event.echo and key_event.keycode == KEY_HOME:
+		_camera_target = Vector3.ZERO
+		_camera_yaw = deg_to_rad(35.0)
+		_camera_pitch = deg_to_rad(28.0)
+		_zoom = 1.0
+		_rebuild_planet_markers()
+		_update_camera()
+		get_viewport().set_input_as_handled()
 
+func _set_map_visible(map_visible: bool) -> void:
+	visible = map_visible
+	_viewport_container.visible = map_visible
+	_subviewport.render_target_update_mode = (
+		SubViewport.UPDATE_ALWAYS if map_visible else SubViewport.UPDATE_DISABLED)
+	if map_visible:
+		_refresh_systems()
+
+func _gui_input(event: InputEvent) -> void:
+	if not visible:
+		return
 	if event is InputEventMouseButton:
 		var mouse_event := event as InputEventMouseButton
 		if mouse_event.button_index == MOUSE_BUTTON_LEFT:
 			_drag_mode = DragMode.ORBIT if mouse_event.pressed else DragMode.NONE
-		elif mouse_event.button_index == MOUSE_BUTTON_RIGHT or mouse_event.button_index == MOUSE_BUTTON_MIDDLE:
+		elif mouse_event.button_index == MOUSE_BUTTON_RIGHT:
 			_drag_mode = DragMode.PAN if mouse_event.pressed else DragMode.NONE
 			if not mouse_event.pressed: _rebuild_planet_markers()
+		elif mouse_event.button_index == MOUSE_BUTTON_MIDDLE and mouse_event.pressed:
+			_select_course_at(mouse_event.position)
 		elif mouse_event.pressed and mouse_event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_zoom = clampf(_zoom * 1.12, 0.1, 20.0)
 			_rebuild_planet_markers()
@@ -108,16 +145,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				+ _camera.global_transform.basis.y * motion.relative.y) * drag_scale
 			_update_camera()
 		get_viewport().set_input_as_handled()
-	elif event is InputEventKey:
-		var key_event := event as InputEventKey
-		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_HOME:
-			_camera_target = Vector3.ZERO
-			_camera_yaw = deg_to_rad(35.0)
-			_camera_pitch = deg_to_rad(28.0)
-			_zoom = 1.0
-			_rebuild_planet_markers()
-			_update_camera()
-			get_viewport().set_input_as_handled()
 
 func _process(delta: float) -> void:
 	if not visible: return
@@ -126,6 +153,7 @@ func _process(delta: float) -> void:
 	_update_camera()
 	_update_station_positions()
 	_update_planet_positions()
+	_update_course_marker()
 	_update_readout()
 	_refresh_timer += delta
 	_planet_refresh_timer += delta
@@ -133,6 +161,7 @@ func _process(delta: float) -> void:
 		_refresh_timer = 0.0
 		_refresh_systems()
 		_rebuild_station_markers()
+		_rebuild_nebula_markers()
 		_rebuild_height_guides()
 	if player != null and absf(player.global_position.y - _last_height_reference) > 100.0:
 		_rebuild_height_guides()
@@ -166,6 +195,7 @@ func _on_system_updated(system_data: Dictionary) -> void:
 
 func _rebuild_system_markers() -> void:
 	_clear_children(_system_root)
+	_system_markers.clear()
 	for system_data in _systems:
 		var system_position: Vector3 = system_data["position"]
 		var marker := MeshInstance3D.new()
@@ -173,13 +203,46 @@ func _rebuild_system_markers() -> void:
 		sphere.radius = 0.75; sphere.height = 1.5
 		sphere.radial_segments = 16; sphere.rings = 8
 		marker.mesh = sphere
-		marker.position = system_position * MAP_SCALE
+		marker.position = WorldCoordinates.to_local_position(system_position) * MAP_SCALE
 		marker.material_override = _make_emissive_material(Color(1.0, 0.72, 0.28), 1.5)
 		marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_system_root.add_child(marker)
+		_system_markers.append({"node": marker, "system_data": system_data})
 		var label := _make_label(str(system_data.get("name", "")), Color(1.0, 0.86, 0.62), 40, 0.055)
 		label.position = Vector3(0.0, 1.8, 0.0)
 		marker.add_child(label)
+
+func _rebuild_nebula_markers() -> void:
+	_clear_children(_nebula_root)
+	if player == null:
+		return
+	var sector_coords := WorldCoordinates.to_sector_coords(player.global_position)
+	var sector_id := SectorUtils.sector_coords_to_id(
+		sector_coords.x, sector_coords.y, sector_coords.z)
+	for nearby_sector_id in SectorUtils.neighbor_sector_ids(sector_id):
+		for nebula in SectorGenerator.get_sector_nebulae(nearby_sector_id):
+			var marker := Node3D.new()
+			var sphere := SphereMesh.new()
+			sphere.radius = 0.5
+			sphere.height = 1.0
+			sphere.radial_segments = 32
+			sphere.rings = 16
+			var cloud := MeshInstance3D.new()
+			cloud.mesh = sphere
+			var color: Color = nebula.get("color", Color(0.55, 0.55, 1.0))
+			var cloud_material := StandardMaterial3D.new()
+			cloud_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			cloud_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			cloud_material.albedo_color = Color(color.r, color.g, color.b, 0.28)
+			cloud.material_override = cloud_material
+			cloud.scale = nebula["size"] * MAP_SCALE
+			cloud.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			marker.add_child(cloud)
+			marker.position = WorldCoordinates.to_local_position(nebula["position"]) * MAP_SCALE
+			_nebula_root.add_child(marker)
+			var label := _make_label(str(nebula.get("name", "Nebula")), color, 28, 0.045)
+			label.position = Vector3(0.0, nebula["size"].y * MAP_SCALE * 0.5 + 0.6, 0.0)
+			marker.add_child(label)
 
 func _rebuild_station_markers() -> void:
 	_clear_children(_station_root)
@@ -217,7 +280,8 @@ func _rebuild_planet_markers() -> void:
 	var planet_material := _make_emissive_material(Color(0.45, 0.8, 1.0), 1.0)
 	for system_data in _systems:
 		var system_position: Vector3 = system_data["position"]
-		if (system_position * MAP_SCALE - player_map_position).distance_to(_camera_target) > visible_radius:
+		var local_system_position: Vector3 = WorldCoordinates.to_local_position(system_position)
+		if (local_system_position * MAP_SCALE - player_map_position).distance_to(_camera_target) > visible_radius:
 			continue
 		for planet_data in system_data.get("planets", []):
 			var marker := MeshInstance3D.new()
@@ -240,7 +304,112 @@ func _update_planet_positions() -> void:
 		var marker: MeshInstance3D = entry["node"]
 		if not is_instance_valid(marker): continue
 		var planet_world_position: Vector3 = SectorGenerator.get_planet_position(entry["system_position"], entry["planet_data"])
-		marker.position = planet_world_position * MAP_SCALE
+		marker.position = WorldCoordinates.to_local_position(planet_world_position) * MAP_SCALE
+
+func _select_course_at(screen_position: Vector2) -> void:
+	var best_distance := 20.0
+	var best_depth := INF
+	var best_name := ""
+	var best_world_position := Vector3.ZERO
+	var candidates: Array[Dictionary] = []
+
+	for entry in _system_markers:
+		var data: Dictionary = entry["system_data"]
+		candidates.append({
+			"marker": entry["node"],
+			"name": str(data.get("name", Locale.t("map.unknown_system"))),
+			"world_position": data["position"],
+		})
+	for entry in _planet_markers:
+		var planet_data: Dictionary = entry["planet_data"]
+		var world_position: Vector3 = SectorGenerator.get_planet_position(
+			entry["system_position"], planet_data)
+		candidates.append({
+			"marker": entry["node"],
+			"name": str(planet_data.get("name", Locale.t("map.unknown_planet"))),
+			"world_position": world_position,
+		})
+	for entry in _station_markers:
+		var station: Node3D = entry["station"]
+		if not is_instance_valid(station):
+			continue
+		candidates.append({
+			"marker": entry["node"],
+			"name": _get_station_name(station),
+			"world_position": WorldCoordinates.to_world_position(station.global_position),
+		})
+
+	for candidate in candidates:
+		var marker: Node3D = candidate["marker"]
+		if not is_instance_valid(marker) or not marker.is_visible_in_tree() \
+		or _camera.is_position_behind(marker.global_position):
+			continue
+		var marker_screen_position := _camera.unproject_position(marker.global_position)
+		var screen_distance := marker_screen_position.distance_to(screen_position)
+		if screen_distance > best_distance:
+			continue
+		var depth := _camera.global_position.distance_to(marker.global_position)
+		if screen_distance < best_distance or depth < best_depth:
+			best_distance = screen_distance
+			best_depth = depth
+			best_name = candidate["name"]
+			best_world_position = candidate["world_position"]
+
+	if best_name.is_empty():
+		return
+	_has_course = true
+	_course_world_position = best_world_position
+	_update_course_marker()
+	course_selected.emit(best_name, best_world_position)
+	get_viewport().set_input_as_handled()
+
+func _get_station_name(station: Node3D) -> String:
+	var part_names := {
+		"res://scripts/entities/station_parts/MainStationPart.gd": "part.main_station",
+		"res://scripts/entities/station_parts/DurasteelRefinery.gd": "part.refinery",
+		"res://scripts/entities/station_parts/FusionCore.gd": "part.fusion_core",
+		"res://scripts/entities/station_parts/AntimatterFactoryBig.gd": "part.am_factory_big",
+		"res://scripts/entities/station_parts/AntimatterFactorySmall.gd": "part.am_factory_small",
+		"res://scripts/entities/station_parts/StorageContainer.gd": "part.storage_container",
+		"res://scripts/entities/station_parts/MiningDrill.gd": "part.mining_drill",
+	}
+	var script: Script = station.get_script()
+	var locale_key: String = part_names.get(script.resource_path, "")
+	return Locale.t(locale_key) if not locale_key.is_empty() else station.name
+
+func _build_course_marker() -> void:
+	_course_root = Node3D.new()
+	_course_root.name = "Course"
+	_course_root.visible = false
+	_map_content.add_child(_course_root)
+	_course_marker = MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 1.4
+	sphere.height = 2.8
+	sphere.radial_segments = 20
+	sphere.rings = 12
+	_course_marker.mesh = sphere
+	_course_marker.material_override = _make_emissive_material(Color(0.25, 1.0, 0.95), 3.0)
+	_course_marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_course_root.add_child(_course_marker)
+	var line_mesh := ImmediateMesh.new()
+	_course_line = MeshInstance3D.new()
+	_course_line.mesh = line_mesh
+	_course_line.material_override = _make_unshaded_material(Color(0.25, 1.0, 0.95, 0.8))
+	_course_root.add_child(_course_line)
+
+func _update_course_marker() -> void:
+	if not _has_course or player == null or _course_root == null:
+		return
+	_course_root.visible = true
+	var target_local := WorldCoordinates.to_local_position(_course_world_position)
+	_course_marker.position = target_local * MAP_SCALE
+	var mesh := _course_line.mesh as ImmediateMesh
+	mesh.clear_surfaces()
+	mesh.surface_begin(Mesh.PRIMITIVE_LINES)
+	mesh.surface_add_vertex(player.global_position * MAP_SCALE)
+	mesh.surface_add_vertex(target_local * MAP_SCALE)
+	mesh.surface_end()
 
 func _rebuild_height_guides() -> void:
 	if player == null or _height_guides == null: return
@@ -251,7 +420,7 @@ func _rebuild_height_guides() -> void:
 	mesh.surface_begin(Mesh.PRIMITIVE_LINES)
 	var reference_y: float = player.global_position.y * MAP_SCALE
 	for system_data in _systems:
-		var system_map_position: Vector3 = system_data["position"] * MAP_SCALE
+		var system_map_position: Vector3 = WorldCoordinates.to_local_position(system_data["position"]) * MAP_SCALE
 		if absf(system_map_position.y - reference_y) < 0.05: continue
 		mesh.surface_add_vertex(Vector3(system_map_position.x, reference_y, system_map_position.z))
 		mesh.surface_add_vertex(system_map_position)
@@ -327,6 +496,21 @@ func _create_hud() -> void:
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay.z_index = 1
 	add_child(overlay)
+	var toolbar := HBoxContainer.new()
+	toolbar.anchor_left = 1.0
+	toolbar.anchor_right = 1.0
+	toolbar.offset_left = -164.0
+	toolbar.offset_right = -14.0
+	toolbar.offset_top = 14.0
+	toolbar.offset_bottom = 54.0
+	toolbar.add_theme_constant_override("separation", 8)
+	toolbar.mouse_filter = Control.MOUSE_FILTER_PASS
+	toolbar.z_index = 2
+	overlay.add_child(toolbar)
+	_nebula_toggle_button = Button.new()
+	_nebula_toggle_button.custom_minimum_size = Vector2(150.0, 40.0)
+	_nebula_toggle_button.pressed.connect(_toggle_nebula_markers)
+	toolbar.add_child(_nebula_toggle_button)
 	_readout = Label.new()
 	_readout.add_theme_color_override("font_color", Color(0.82, 0.91, 0.94))
 	_readout.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
@@ -335,6 +519,18 @@ func _create_hud() -> void:
 	_readout.size = Vector2(900.0, 32.0)
 	_readout.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay.add_child(_readout)
+	_update_nebula_toggle_text()
+	Locale.language_changed.connect(func(_language: String) -> void: _update_nebula_toggle_text())
+
+func _toggle_nebula_markers() -> void:
+	_nebula_markers_visible = not _nebula_markers_visible
+	_nebula_root.visible = _nebula_markers_visible
+	_update_nebula_toggle_text()
+
+func _update_nebula_toggle_text() -> void:
+	if _nebula_toggle_button == null:
+		return
+	_nebula_toggle_button.text = Locale.t("map.nebula_on" if _nebula_markers_visible else "map.nebula_off")
 
 func _make_label(text: String, color: Color, font_size: int, pixel_size: float) -> Label3D:
 	var label := Label3D.new()

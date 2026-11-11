@@ -4,6 +4,7 @@ extends Node3D
 var system_name: String = ""
 
 func _ready() -> void:
+	add_to_group("stars")
 	var mi := MeshInstance3D.new()
 	var sp := SphereMesh.new()
 	# Radius 7.5 = ~0.75× Erdradius (10.0) – Spielkompromiss, Sonne wäre real 109× Erde

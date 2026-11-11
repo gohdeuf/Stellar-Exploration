@@ -1,5 +1,5 @@
 class_name BridgeView
-extends Node3D
+extends XROrigin3D
 
 const BRIDGE_GLB := "res://assets/ship/bridge.glb"
 const GLB_SCALE  := 0.01
@@ -83,7 +83,7 @@ func _load_glb() -> void:
 	var root: Node3D    = ps.instantiate() as Node3D
 	root.scale          = Vector3.ONE * GLB_SCALE
 	add_child(root)
-	bridge_cam       = Camera3D.new()
+	bridge_cam       = XRCamera3D.new()
 	bridge_cam.near  = 0.0005
 	bridge_cam.far   = 3000.0
 	bridge_cam.fov   = BRIDGE_FOV
@@ -296,7 +296,7 @@ func _exit_tree() -> void:
 
 # ── Primitiv-Fallback ─────────────────────────────────────────────────────────
 func _build_fallback() -> void:
-	bridge_cam          = Camera3D.new()
+	bridge_cam          = XRCamera3D.new()
 	bridge_cam.position = Vector3(0.0, S * 0.18, -S * 0.03)
 	bridge_cam.near     = 0.0005
 	bridge_cam.far      = 3000.0

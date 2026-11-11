@@ -34,8 +34,13 @@ func _build_ui() -> void:
 	btn_fc.pressed.connect(_toggle_fusion_cores); btn_row.add_child(btn_fc)
 	var btn_am := Button.new(); btn_am.text="AM Ein/Aus"; btn_am.custom_minimum_size=Vector2(130,0)
 	btn_am.pressed.connect(_toggle_am_factories); btn_row.add_child(btn_am)
+	var btn_row_refinery := HBoxContainer.new(); btn_row_refinery.add_theme_constant_override("separation",6); vbox.add_child(btn_row_refinery)
+	var btn_refine := Button.new(); btn_refine.text="Refinieren"; btn_refine.custom_minimum_size=Vector2(130,0)
+	btn_refine.pressed.connect(_refine_durasteel); btn_row_refinery.add_child(btn_refine)
+	var btn_refinery := Button.new(); btn_refinery.text="Raffinerie Ein/Aus"; btn_refinery.custom_minimum_size=Vector2(130,0)
+	btn_refinery.pressed.connect(_toggle_refineries); btn_row_refinery.add_child(btn_refinery)
 	var sep2 := HSeparator.new(); vbox.add_child(sep2)
-	var hint := Label.new(); hint.text="[D] Einlagern\n[W] Auslagern\n[H] Schliessen"
+	var hint := Label.new(); hint.text="[D] Einlagern\n[W] Auslagern\n[F2] Schliessen"
 	hint.add_theme_color_override("font_color",Color(0.6,0.6,0.6)); hint.add_theme_font_size_override("font_size",12); vbox.add_child(hint)
 	get_tree().root.call_deferred("add_child", _ui)
 
@@ -47,6 +52,10 @@ func close_panel() -> void:
 	if not is_open: return
 	is_open=false; _ui.visible=false
 
+func toggle_panel() -> void:
+	if is_open: close_panel()
+	else: open_panel()
+
 func _process(delta: float) -> void:
 	if not is_open: return
 	_timer += delta
@@ -55,8 +64,7 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey or event is InputEventMouseButton or event is InputEventJoypadButton): return
 	if Input.is_action_just_pressed("station_management"):
-		if is_open: close_panel()
-		else: open_panel()
+		toggle_panel()
 		return
 	if not is_open: return
 	if Input.is_action_just_pressed("deposit_resources"):  _deposit()
@@ -74,6 +82,7 @@ func _refresh() -> void:
 
 	var power_out: float=0.0; var power_dem: float=0.0
 	var fc_count:int=0; var amf_count:int=0; var st_count:int=0; var drill_count:int=0
+	var refinery_count:int=0; var refinery_enabled:int=0
 	var fc_enabled:int=0; var amf_enabled:int=0
 
 	for p in parts:
@@ -85,10 +94,16 @@ func _refresh() -> void:
 			power_dem += AntimatterFactorySmall.REQUIRED_POWER; amf_count+=1
 			if p is AntimatterFactorySmall and (p as AntimatterFactorySmall).is_enabled: amf_enabled+=1
 			elif p is AntimatterFactoryBig and (p as AntimatterFactoryBig).is_enabled: amf_enabled+=1
+		if p.is_in_group("durasteel_refineries"):
+			power_dem += DurasteelRefinery.REQUIRED_POWER
 		if p.is_in_group("storage_containers"): st_count+=1
 		if p.is_in_group("mining_drills"): drill_count+=1
+		if p.is_in_group("durasteel_refineries") and p is DurasteelRefinery:
+			refinery_count += 1
+			if (p as DurasteelRefinery).is_enabled: refinery_enabled += 1
 
 	var am_rate: float=0.0
+	var refinery_rate: float=0.0
 	for p in parts:
 		if p.is_in_group("am_factories"):
 			var base: float=0.0; var req: float=1.0
@@ -101,14 +116,22 @@ func _refresh() -> void:
 			var eff: float = clamp(power_out/req,0.0,1.0) if req>0 else 0.0
 			var star: float = AntimatterFactorySmall._get_star_proximity_bonus(p.global_position)
 			am_rate += base*eff*star
+		if p is DurasteelRefinery and (p as DurasteelRefinery).is_enabled and power_out >= DurasteelRefinery.REQUIRED_POWER:
+			refinery_rate += DurasteelRefinery.REFINING_RATE * clampf(power_out / DurasteelRefinery.FULL_POWER, 0.0, 1.0)
 
 	var cap_min: int = st_count * StorageContainer.CAPACITY_PER_UNIT["minerals"]
+	var cap_hyd: int = st_count * StorageContainer.CAPACITY_PER_UNIT["hydrogen"]
 	var cap_deu: int = st_count * StorageContainer.CAPACITY_PER_UNIT["deuterium"]
+	var cap_tri: int = st_count * StorageContainer.CAPACITY_PER_UNIT["tritium"]
 	var cap_am:  int = st_count * StorageContainer.CAPACITY_PER_UNIT["antimatter"]
+	var cap_dur: int = st_count * StorageContainer.CAPACITY_PER_UNIT["durasteel"]
 	var stored: Dictionary = GameDatabase.get_station_storage(sid)
 	var st_min: int = int(stored.get("minerals",  0.0))
+	var st_hyd: int = int(stored.get("hydrogen",  0.0))
 	var st_deu: int = int(stored.get("deuterium", 0.0))
+	var st_tri: int = int(stored.get("tritium", 0.0))
 	var st_am:  int = int(stored.get("antimatter",0.0))
+	var st_dur: int = int(stored.get("durasteel",0.0))
 	var dist: int   = int(ship.global_position.distance_to(_nearest_hub.global_position))
 	var orbit_tag: String = " [ORBIT]" if is_orbital else ""
 
@@ -118,11 +141,15 @@ func _refresh() -> void:
 		"Leistung: %.0f / %.0f W\n" % [power_out, power_dem] +
 		"FC: %d/%d aktiv  AM: %d/%d aktiv\n" % [fc_enabled, fc_count, amf_enabled, amf_count] +
 		"AM-Prod: %.3f AM/Sek\n" % am_rate +
+		"Raffinerien: %d/%d aktiv (%.2f DS/Sek)\n" % [refinery_enabled, refinery_count, refinery_rate] +
 		("Bohrer: %dx\n" % drill_count if drill_count>0 else "") +
 		"─────────────────\n" +
 		"Lager (Min): %d / %d\n" % [st_min, cap_min] +
+		"Lager (H2):  %d / %d\n" % [st_hyd, cap_hyd] +
 		"Lager (Deu): %d / %d\n" % [st_deu, cap_deu] +
-		"Lager (AM):  %d / %d"   % [st_am,  cap_am]
+		"Lager (T3):  %d / %d\n" % [st_tri, cap_tri] +
+		"Lager (AM):  %d / %d\n" % [st_am, cap_am] +
+		"Lager (Dura): %d / %d" % [st_dur, cap_dur]
 	)
 
 func _deposit() -> void:
@@ -137,13 +164,25 @@ func _deposit() -> void:
 	GameDatabase.deposit_to_station(sid,
 		st_count*StorageContainer.CAPACITY_PER_UNIT["minerals"],
 		st_count*StorageContainer.CAPACITY_PER_UNIT["deuterium"],
-		st_count*StorageContainer.CAPACITY_PER_UNIT["antimatter"])
+		st_count*StorageContainer.CAPACITY_PER_UNIT["antimatter"],
+		st_count*StorageContainer.CAPACITY_PER_UNIT["hydrogen"],
+		st_count*StorageContainer.CAPACITY_PER_UNIT["tritium"],
+		st_count*StorageContainer.CAPACITY_PER_UNIT["durasteel"])
 	if _hud: _hud.show_message(Locale.t("station.deposited")); _refresh()
 
 func _withdraw() -> void:
 	if _nearest_hub==null: return
 	GameDatabase.withdraw_from_station(_get_hub_station_sid(_nearest_hub))
 	if _hud: _hud.show_message(Locale.t("station.withdrawn")); _refresh()
+
+func _refine_durasteel() -> void:
+	if _nearest_hub==null: return
+	var sid := _get_hub_station_sid(_nearest_hub)
+	if GameDatabase.refine_station_durasteel(sid, 25.0, 10.0):
+		if _hud: _hud.show_message(Locale.t("station.refined"))
+	else:
+		if _hud: _hud.show_message(Locale.t("station.refine_missing"))
+	_refresh()
 
 func _toggle_fusion_cores() -> void:
 	if _nearest_hub==null: return
@@ -159,6 +198,13 @@ func _toggle_am_factories() -> void:
 			(p as AntimatterFactorySmall).is_enabled = not (p as AntimatterFactorySmall).is_enabled
 		elif p is AntimatterFactoryBig:
 			(p as AntimatterFactoryBig).is_enabled = not (p as AntimatterFactoryBig).is_enabled
+	_refresh()
+
+func _toggle_refineries() -> void:
+	if _nearest_hub==null: return
+	for p in _get_nearby_parts(_nearest_hub.global_position):
+		if p is DurasteelRefinery:
+			(p as DurasteelRefinery).is_enabled = not (p as DurasteelRefinery).is_enabled
 	_refresh()
 
 func _get_hub_station_sid(hub: Node3D) -> String:

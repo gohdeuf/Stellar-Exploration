@@ -3,10 +3,13 @@ extends Node3D
 # Haupt-Stationsmodul: zentraler Hub fuer alle anderen Station-Parts.
 # Visuell: Torusring + Zentralzylinder + 4 Solarfluegelpaare.
 
+const VISUAL_SCALE := 0.1
+
 var _ring_time: float = 0.0
 var _outer_ring: MeshInstance3D = null
 
 func _ready() -> void:
+	scale = Vector3.ONE * VISUAL_SCALE
 	add_to_group("stations")
 	add_to_group("main_station_parts")
 	_build_visual()
@@ -51,7 +54,7 @@ func _build_visual() -> void:
 
 	# Andock-Licht
 	var dock_light := OmniLight3D.new()
-	dock_light.light_color = Color(0.4, 0.7, 1.0); dock_light.omni_range = 40.0
+	dock_light.light_color = Color(0.4, 0.7, 1.0); dock_light.omni_range = 4.0
 	dock_light.light_energy = 2.0; add_child(dock_light)
 
 func _process(delta: float) -> void:

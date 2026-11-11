@@ -3,9 +3,19 @@ extends Node3D
 # Lager-Modul fuer Stationsressourcen.
 # Jeder Container erhoht die Stationskapazitaet um CAPACITY_PER_UNIT.
 
-const CAPACITY_PER_UNIT := {"minerals": 5000, "deuterium": 2000, "antimatter": 200}
+const VISUAL_SCALE := 0.1
+
+const CAPACITY_PER_UNIT := {
+	"minerals": 5000,
+	"hydrogen": 8000,
+	"deuterium": 2000,
+	"tritium": 1500,
+	"antimatter": 200,
+	"durasteel": 500,
+}
 
 func _ready() -> void:
+	scale = Vector3.ONE * VISUAL_SCALE
 	add_to_group("stations")
 	add_to_group("storage_containers")
 	_build_visual()
@@ -66,5 +76,5 @@ func _build_visual() -> void:
 
 	# Status-Licht
 	var light := OmniLight3D.new()
-	light.light_color = Color(0.2, 0.9, 0.3); light.omni_range = 20.0; light.light_energy = 0.8
+	light.light_color = Color(0.2, 0.9, 0.3); light.omni_range = 2.0; light.light_energy = 0.8
 	add_child(light)
