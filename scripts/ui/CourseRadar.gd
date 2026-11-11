@@ -165,24 +165,25 @@ func _update_course_label() -> void:
 	]
 
 func _get_target_name(node: Node3D) -> String:
+	var result := node.name
 	if node is Planet:
-		return str((node as Planet).planet_data.get("name", node.name))
-	if node is Moon:
-		return (node as Moon).moon_display_name
-	if node is Star:
-		return (node as Star).system_name
-	if node.is_in_group("main_station_parts"):
-		return Locale.t("part.main_station")
-	if node is DurasteelRefinery:
-		return Locale.t("part.refinery")
-	if node is FusionCore:
-		return Locale.t("part.fusion_core")
-	if node is AntimatterFactoryBig:
-		return Locale.t("part.am_factory_big")
-	if node is AntimatterFactorySmall:
-		return Locale.t("part.am_factory_small")
-	if node is StorageContainer:
-		return Locale.t("part.storage_container")
-	if node is MiningDrill:
-		return Locale.t("part.mining_drill")
-	return node.name
+		result = str((node as Planet).planet_data.get("name", node.name))
+	elif node is Moon:
+		result = (node as Moon).moon_display_name
+	elif node is Star:
+		result = (node as Star).system_name
+	elif node.is_in_group("main_station_parts"):
+		result = Locale.t("part.main_station")
+	elif node is DurasteelRefinery:
+		result = Locale.t("part.refinery")
+	elif node is FusionCore:
+		result = Locale.t("part.fusion_core")
+	elif node is AntimatterFactoryBig:
+		result = Locale.t("part.am_factory_big")
+	elif node is AntimatterFactorySmall:
+		result = Locale.t("part.am_factory_small")
+	elif node is StorageContainer:
+		result = Locale.t("part.storage_container")
+	elif node is MiningDrill:
+		result = Locale.t("part.mining_drill")
+	return result

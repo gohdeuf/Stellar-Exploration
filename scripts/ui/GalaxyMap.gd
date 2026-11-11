@@ -364,21 +364,18 @@ func _select_course_at(screen_position: Vector2) -> void:
 	get_viewport().set_input_as_handled()
 
 func _get_station_name(station: Node3D) -> String:
-	if station is MainStationPart:
-		return Locale.t("part.main_station")
-	if station is DurasteelRefinery:
-		return Locale.t("part.refinery")
-	if station is FusionCore:
-		return Locale.t("part.fusion_core")
-	if station is AntimatterFactoryBig:
-		return Locale.t("part.am_factory_big")
-	if station is AntimatterFactorySmall:
-		return Locale.t("part.am_factory_small")
-	if station is StorageContainer:
-		return Locale.t("part.storage_container")
-	if station is MiningDrill:
-		return Locale.t("part.mining_drill")
-	return station.name
+	var part_names := {
+		"res://scripts/entities/station_parts/MainStationPart.gd": "part.main_station",
+		"res://scripts/entities/station_parts/DurasteelRefinery.gd": "part.refinery",
+		"res://scripts/entities/station_parts/FusionCore.gd": "part.fusion_core",
+		"res://scripts/entities/station_parts/AntimatterFactoryBig.gd": "part.am_factory_big",
+		"res://scripts/entities/station_parts/AntimatterFactorySmall.gd": "part.am_factory_small",
+		"res://scripts/entities/station_parts/StorageContainer.gd": "part.storage_container",
+		"res://scripts/entities/station_parts/MiningDrill.gd": "part.mining_drill",
+	}
+	var script: Script = station.get_script()
+	var locale_key: String = part_names.get(script.resource_path, "")
+	return Locale.t(locale_key) if not locale_key.is_empty() else station.name
 
 func _build_course_marker() -> void:
 	_course_root = Node3D.new()
