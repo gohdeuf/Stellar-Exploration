@@ -34,8 +34,11 @@ func _build_ui() -> void:
 	btn_fc.pressed.connect(_toggle_fusion_cores); btn_row.add_child(btn_fc)
 	var btn_am := Button.new(); btn_am.text="AM Ein/Aus"; btn_am.custom_minimum_size=Vector2(130,0)
 	btn_am.pressed.connect(_toggle_am_factories); btn_row.add_child(btn_am)
+	var btn_row_refinery := HBoxContainer.new(); btn_row_refinery.add_theme_constant_override("separation",6); vbox.add_child(btn_row_refinery)
 	var btn_refine := Button.new(); btn_refine.text="Refinieren"; btn_refine.custom_minimum_size=Vector2(130,0)
-	btn_refine.pressed.connect(_refine_durasteel); btn_row.add_child(btn_refine)
+	btn_refine.pressed.connect(_refine_durasteel); btn_row_refinery.add_child(btn_refine)
+	var btn_refinery := Button.new(); btn_refinery.text="Raffinerie Ein/Aus"; btn_refinery.custom_minimum_size=Vector2(130,0)
+	btn_refinery.pressed.connect(_toggle_refineries); btn_row_refinery.add_child(btn_refinery)
 	var sep2 := HSeparator.new(); vbox.add_child(sep2)
 	var hint := Label.new(); hint.text="[D] Einlagern\n[W] Auslagern\n[F2] Schliessen"
 	hint.add_theme_color_override("font_color",Color(0.6,0.6,0.6)); hint.add_theme_font_size_override("font_size",12); vbox.add_child(hint)
@@ -79,6 +82,7 @@ func _refresh() -> void:
 
 	var power_out: float=0.0; var power_dem: float=0.0
 	var fc_count:int=0; var amf_count:int=0; var st_count:int=0; var drill_count:int=0
+	var refinery_count:int=0; var refinery_enabled:int=0
 	var fc_enabled:int=0; var amf_enabled:int=0
 
 	for p in parts:
@@ -90,10 +94,16 @@ func _refresh() -> void:
 			power_dem += AntimatterFactorySmall.REQUIRED_POWER; amf_count+=1
 			if p is AntimatterFactorySmall and (p as AntimatterFactorySmall).is_enabled: amf_enabled+=1
 			elif p is AntimatterFactoryBig and (p as AntimatterFactoryBig).is_enabled: amf_enabled+=1
+		if p.is_in_group("durasteel_refineries"):
+			power_dem += DurasteelRefinery.REQUIRED_POWER
 		if p.is_in_group("storage_containers"): st_count+=1
 		if p.is_in_group("mining_drills"): drill_count+=1
+		if p.is_in_group("durasteel_refineries") and p is DurasteelRefinery:
+			refinery_count += 1
+			if (p as DurasteelRefinery).is_enabled: refinery_enabled += 1
 
 	var am_rate: float=0.0
+	var refinery_rate: float=0.0
 	for p in parts:
 		if p.is_in_group("am_factories"):
 			var base: float=0.0; var req: float=1.0
@@ -106,6 +116,8 @@ func _refresh() -> void:
 			var eff: float = clamp(power_out/req,0.0,1.0) if req>0 else 0.0
 			var star: float = AntimatterFactorySmall._get_star_proximity_bonus(p.global_position)
 			am_rate += base*eff*star
+		if p is DurasteelRefinery and (p as DurasteelRefinery).is_enabled and power_out >= DurasteelRefinery.REQUIRED_POWER:
+			refinery_rate += DurasteelRefinery.REFINING_RATE * clampf(power_out / DurasteelRefinery.FULL_POWER, 0.0, 1.0)
 
 	var cap_min: int = st_count * StorageContainer.CAPACITY_PER_UNIT["minerals"]
 	var cap_hyd: int = st_count * StorageContainer.CAPACITY_PER_UNIT["hydrogen"]
@@ -129,6 +141,7 @@ func _refresh() -> void:
 		"Leistung: %.0f / %.0f W\n" % [power_out, power_dem] +
 		"FC: %d/%d aktiv  AM: %d/%d aktiv\n" % [fc_enabled, fc_count, amf_enabled, amf_count] +
 		"AM-Prod: %.3f AM/Sek\n" % am_rate +
+		"Raffinerien: %d/%d aktiv (%.2f DS/Sek)\n" % [refinery_enabled, refinery_count, refinery_rate] +
 		("Bohrer: %dx\n" % drill_count if drill_count>0 else "") +
 		"─────────────────\n" +
 		"Lager (Min): %d / %d\n" % [st_min, cap_min] +
@@ -185,6 +198,13 @@ func _toggle_am_factories() -> void:
 			(p as AntimatterFactorySmall).is_enabled = not (p as AntimatterFactorySmall).is_enabled
 		elif p is AntimatterFactoryBig:
 			(p as AntimatterFactoryBig).is_enabled = not (p as AntimatterFactoryBig).is_enabled
+	_refresh()
+
+func _toggle_refineries() -> void:
+	if _nearest_hub==null: return
+	for p in _get_nearby_parts(_nearest_hub.global_position):
+		if p is DurasteelRefinery:
+			(p as DurasteelRefinery).is_enabled = not (p as DurasteelRefinery).is_enabled
 	_refresh()
 
 func _get_hub_station_sid(hub: Node3D) -> String:

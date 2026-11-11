@@ -243,13 +243,14 @@ func spend_station_resource(sid: String, type: String, amount: float) -> bool:
 	_upsert_station_storage(sid, st)
 	return true
 
-func refine_station_durasteel(sid: String, minerals_cost: float = 25.0, hydrogen_cost: float = 10.0) -> bool:
+func refine_station_durasteel(sid: String, minerals_cost: float = 25.0, hydrogen_cost: float = 10.0, output_amount: float = 1.0) -> bool:
+	if minerals_cost <= 0.0 or hydrogen_cost <= 0.0 or output_amount <= 0.0: return false
 	var st := get_station_storage(sid)
 	if float(st.get("minerals", 0.0)) < minerals_cost: return false
 	if float(st.get("hydrogen", 0.0)) < hydrogen_cost: return false
 	st["minerals"] = float(st.get("minerals", 0.0)) - minerals_cost
 	st["hydrogen"] = float(st.get("hydrogen", 0.0)) - hydrogen_cost
-	st["durasteel"] = float(st.get("durasteel", 0.0)) + 1.0
+	st["durasteel"] = float(st.get("durasteel", 0.0)) + output_amount
 	_upsert_station_storage(sid, st)
 	return true
 

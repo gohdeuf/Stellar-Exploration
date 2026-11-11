@@ -1,6 +1,7 @@
 class_name AntimatterFactorySmall
 extends Node3D
 
+const VISUAL_SCALE := 0.1
 const AM_BASE_RATE    := 0.2
 const REQUIRED_POWER  := 50.0
 const FULL_POWER      := 100.0
@@ -19,6 +20,7 @@ var _chamber_mat:   StandardMaterial3D = null
 var _active: bool = false
 
 func _ready() -> void:
+	scale = Vector3.ONE * VISUAL_SCALE
 	add_to_group("stations"); add_to_group("am_factories"); _build_visual()
 
 func _build_visual() -> void:
@@ -33,7 +35,7 @@ func _build_visual() -> void:
 	_chamber_mat = StandardMaterial3D.new(); _chamber_mat.albedo_color=Color(0.0,0.9,1.0)
 	_chamber_mat.emission_enabled=true; _chamber_mat.emission=Color(0.0,0.8,1.0); _chamber_mat.emission_energy_multiplier=0.5
 	chamber.material_override = _chamber_mat; add_child(chamber)
-	_chamber_light = OmniLight3D.new(); _chamber_light.light_color=Color(0.0,0.8,1.0); _chamber_light.omni_range=25.0; _chamber_light.light_energy=0.3; add_child(_chamber_light)
+	_chamber_light = OmniLight3D.new(); _chamber_light.light_color=Color(0.0,0.8,1.0); _chamber_light.omni_range=2.5; _chamber_light.light_energy=0.3; add_child(_chamber_light)
 
 func _process(delta: float) -> void:
 	_pulse_time += delta

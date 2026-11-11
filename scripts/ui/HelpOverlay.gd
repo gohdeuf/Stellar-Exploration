@@ -107,7 +107,7 @@ func _refresh_text() -> void: _label.text = _help_text()
 
 func _help_text() -> String:
 	# ACHTUNG: Die Anzahl der Einträge unten MUSS exakt mit den \n%s übereinstimmen!
-	return "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s" % [
+	return "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s" % [
 		Locale.t("help.title"),
 		Locale.t("help.move"),
 		Locale.t("help.pitch_yaw"),
@@ -127,4 +127,5 @@ func _help_text() -> String:
 		Locale.t("help.ship_reactor"),
 		Locale.t("help.quit"),
 		Locale.t("help.language", {"lang": Locale.current_language}),
+		Locale.t("help.course"),
 	]

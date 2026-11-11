@@ -105,11 +105,15 @@ func _start_game() -> void:
 	ship.init_systems(weapon_system, warp_drive, crew_system, shield_system)
 
 	var map: GalaxyMap = preload("res://scenes/UI/GalaxyMap.tscn").instantiate()
+	map.add_to_group("galaxy_map")
 	add_child(map); map.set_player(ship)
 	var help_overlay := preload("res://scenes/UI/HelpOverlay.tscn").instantiate() as HelpOverlay
 	add_child(help_overlay)
 	help_overlay.setup(crew_system, station_mgmt)
-	add_child(preload("res://scenes/UI/InventoryHUD.tscn").instantiate())
+	var inventory_hud: InventoryHUD = preload("res://scenes/UI/InventoryHUD.tscn").instantiate()
+	add_child(inventory_hud)
+	inventory_hud.setup_course_radar(ship, camera_rig.camera)
+	map.course_selected.connect(inventory_hud.set_course_position)
 	if TouchControls.should_show():
 		add_child(preload("res://scenes/UI/TouchControls.tscn").instantiate())
 	_pause_menu = preload("res://scripts/ui/PauseMenu.gd").new()

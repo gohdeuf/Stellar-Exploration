@@ -18,7 +18,7 @@ This roadmap outlines the core goals and milestones for the upcoming versions of
 ### 🏭 Economy & Logistics Foundation
 * **Physisch Rohstoff-Kette:** ✅ Implement local SQLite inventories for individual stations and freighters.
 * **Isotope Hierarchy:** ✅ Add harvesting logic for Hydrogen (¹H), Deuterium (²H), and rare Tritium (³H) within stellar nebulae.
-* **Refinery Stations:** Create the framework for refining raw minerals into construction alloys (e.g., Durasteel).
+* **Refinery Stations:** ✅ Buildable refinery modules convert minerals and hydrogen into Durasteel using station power.
 
 ### Sound Engine
 * **Add sound engine with realisim:** integratet so no sound in vakuum and so on

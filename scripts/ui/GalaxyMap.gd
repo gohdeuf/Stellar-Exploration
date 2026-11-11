@@ -8,6 +8,8 @@ const GRID_HALF_SIZE := 250.0
 
 enum DragMode { NONE, ORBIT, PAN }
 
+signal course_selected(target_name: String, world_position: Vector3)
+
 @export var refresh_interval: float = 5.0
 
 @onready var _viewport_container: SubViewportContainer = $ViewportContainer
@@ -40,9 +42,15 @@ var _height_guides: MeshInstance3D
 var _player_marker: Node3D
 var _planet_markers: Array = []
 var _station_markers: Array = []
+var _system_markers: Array = []
 var _readout: Label
 var _nebula_toggle_button: Button
 var _nebula_markers_visible := true
+var _course_root: Node3D
+var _course_marker: MeshInstance3D
+var _course_line: MeshInstance3D
+var _course_world_position := Vector3.ZERO
+var _has_course := false
 
 func _ready() -> void:
 	_set_map_visible(false)
@@ -58,6 +66,7 @@ func _ready() -> void:
 	_map_content.add_child(_nebula_root)
 	_map_content.add_child(_station_root)
 	_map_content.add_child(_planet_root)
+	_build_course_marker()
 	_build_reference_grid()
 	_build_axes()
 	_build_player_marker()
@@ -111,9 +120,11 @@ func _gui_input(event: InputEvent) -> void:
 		var mouse_event := event as InputEventMouseButton
 		if mouse_event.button_index == MOUSE_BUTTON_LEFT:
 			_drag_mode = DragMode.ORBIT if mouse_event.pressed else DragMode.NONE
-		elif mouse_event.button_index == MOUSE_BUTTON_RIGHT or mouse_event.button_index == MOUSE_BUTTON_MIDDLE:
+		elif mouse_event.button_index == MOUSE_BUTTON_RIGHT:
 			_drag_mode = DragMode.PAN if mouse_event.pressed else DragMode.NONE
 			if not mouse_event.pressed: _rebuild_planet_markers()
+		elif mouse_event.button_index == MOUSE_BUTTON_MIDDLE and mouse_event.pressed:
+			_select_course_at(mouse_event.position)
 		elif mouse_event.pressed and mouse_event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_zoom = clampf(_zoom * 1.12, 0.1, 20.0)
 			_rebuild_planet_markers()
@@ -142,6 +153,7 @@ func _process(delta: float) -> void:
 	_update_camera()
 	_update_station_positions()
 	_update_planet_positions()
+	_update_course_marker()
 	_update_readout()
 	_refresh_timer += delta
 	_planet_refresh_timer += delta
@@ -183,6 +195,7 @@ func _on_system_updated(system_data: Dictionary) -> void:
 
 func _rebuild_system_markers() -> void:
 	_clear_children(_system_root)
+	_system_markers.clear()
 	for system_data in _systems:
 		var system_position: Vector3 = system_data["position"]
 		var marker := MeshInstance3D.new()
@@ -194,6 +207,7 @@ func _rebuild_system_markers() -> void:
 		marker.material_override = _make_emissive_material(Color(1.0, 0.72, 0.28), 1.5)
 		marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_system_root.add_child(marker)
+		_system_markers.append({"node": marker, "system_data": system_data})
 		var label := _make_label(str(system_data.get("name", "")), Color(1.0, 0.86, 0.62), 40, 0.055)
 		label.position = Vector3(0.0, 1.8, 0.0)
 		marker.add_child(label)
@@ -291,6 +305,114 @@ func _update_planet_positions() -> void:
 		if not is_instance_valid(marker): continue
 		var planet_world_position: Vector3 = SectorGenerator.get_planet_position(entry["system_position"], entry["planet_data"])
 		marker.position = WorldCoordinates.to_local_position(planet_world_position) * MAP_SCALE
+
+func _select_course_at(screen_position: Vector2) -> void:
+	var best_distance := 20.0
+	var best_depth := INF
+	var best_name := ""
+	var best_world_position := Vector3.ZERO
+	var candidates: Array[Dictionary] = []
+
+	for entry in _system_markers:
+		var data: Dictionary = entry["system_data"]
+		candidates.append({
+			"marker": entry["node"],
+			"name": str(data.get("name", Locale.t("map.unknown_system"))),
+			"world_position": data["position"],
+		})
+	for entry in _planet_markers:
+		var planet_data: Dictionary = entry["planet_data"]
+		var world_position: Vector3 = SectorGenerator.get_planet_position(
+			entry["system_position"], planet_data)
+		candidates.append({
+			"marker": entry["node"],
+			"name": str(planet_data.get("name", Locale.t("map.unknown_planet"))),
+			"world_position": world_position,
+		})
+	for entry in _station_markers:
+		var station: Node3D = entry["station"]
+		if not is_instance_valid(station):
+			continue
+		candidates.append({
+			"marker": entry["node"],
+			"name": _get_station_name(station),
+			"world_position": WorldCoordinates.to_world_position(station.global_position),
+		})
+
+	for candidate in candidates:
+		var marker: Node3D = candidate["marker"]
+		if not is_instance_valid(marker) or not marker.is_visible_in_tree() \
+		or _camera.is_position_behind(marker.global_position):
+			continue
+		var marker_screen_position := _camera.unproject_position(marker.global_position)
+		var screen_distance := marker_screen_position.distance_to(screen_position)
+		if screen_distance > best_distance:
+			continue
+		var depth := _camera.global_position.distance_to(marker.global_position)
+		if screen_distance < best_distance or depth < best_depth:
+			best_distance = screen_distance
+			best_depth = depth
+			best_name = candidate["name"]
+			best_world_position = candidate["world_position"]
+
+	if best_name.is_empty():
+		return
+	_has_course = true
+	_course_world_position = best_world_position
+	_update_course_marker()
+	course_selected.emit(best_name, best_world_position)
+	get_viewport().set_input_as_handled()
+
+func _get_station_name(station: Node3D) -> String:
+	if station is MainStationPart:
+		return Locale.t("part.main_station")
+	if station is DurasteelRefinery:
+		return Locale.t("part.refinery")
+	if station is FusionCore:
+		return Locale.t("part.fusion_core")
+	if station is AntimatterFactoryBig:
+		return Locale.t("part.am_factory_big")
+	if station is AntimatterFactorySmall:
+		return Locale.t("part.am_factory_small")
+	if station is StorageContainer:
+		return Locale.t("part.storage_container")
+	if station is MiningDrill:
+		return Locale.t("part.mining_drill")
+	return station.name
+
+func _build_course_marker() -> void:
+	_course_root = Node3D.new()
+	_course_root.name = "Course"
+	_course_root.visible = false
+	_map_content.add_child(_course_root)
+	_course_marker = MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 1.4
+	sphere.height = 2.8
+	sphere.radial_segments = 20
+	sphere.rings = 12
+	_course_marker.mesh = sphere
+	_course_marker.material_override = _make_emissive_material(Color(0.25, 1.0, 0.95), 3.0)
+	_course_marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_course_root.add_child(_course_marker)
+	var line_mesh := ImmediateMesh.new()
+	_course_line = MeshInstance3D.new()
+	_course_line.mesh = line_mesh
+	_course_line.material_override = _make_unshaded_material(Color(0.25, 1.0, 0.95, 0.8))
+	_course_root.add_child(_course_line)
+
+func _update_course_marker() -> void:
+	if not _has_course or player == null or _course_root == null:
+		return
+	_course_root.visible = true
+	var target_local := WorldCoordinates.to_local_position(_course_world_position)
+	_course_marker.position = target_local * MAP_SCALE
+	var mesh := _course_line.mesh as ImmediateMesh
+	mesh.clear_surfaces()
+	mesh.surface_begin(Mesh.PRIMITIVE_LINES)
+	mesh.surface_add_vertex(player.global_position * MAP_SCALE)
+	mesh.surface_add_vertex(target_local * MAP_SCALE)
+	mesh.surface_end()
 
 func _rebuild_height_guides() -> void:
 	if player == null or _height_guides == null: return
