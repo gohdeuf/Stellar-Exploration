@@ -10,6 +10,7 @@ enum DragMode { NONE, ORBIT, PAN }
 
 @export var refresh_interval: float = 5.0
 
+@onready var _viewport_container: SubViewportContainer = $ViewportContainer
 @onready var _subviewport: SubViewport = $ViewportContainer/SubViewport
 @onready var _map_world: Node3D = $ViewportContainer/SubViewport/MapWorld
 @onready var _camera: Camera3D = $ViewportContainer/SubViewport/MapWorld/Camera3D
@@ -44,9 +45,8 @@ var _nebula_toggle_button: Button
 var _nebula_markers_visible := true
 
 func _ready() -> void:
-	visible = false
+	_set_map_visible(false)
 	mouse_filter = Control.MOUSE_FILTER_PASS
-	_subviewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	_map_content = Node3D.new()
 	_map_content.name = "MapContent"
 	_map_world.add_child(_map_content)
@@ -81,9 +81,8 @@ func set_player(node: Node3D) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_map"):
-		visible = not visible
+		_set_map_visible(not visible)
 		get_viewport().set_input_as_handled()
-		if visible: _refresh_systems()
 		return
 	if not visible or not event is InputEventKey:
 		return
@@ -96,6 +95,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		_rebuild_planet_markers()
 		_update_camera()
 		get_viewport().set_input_as_handled()
+
+func _set_map_visible(map_visible: bool) -> void:
+	visible = map_visible
+	_viewport_container.visible = map_visible
+	_subviewport.render_target_update_mode = (
+		SubViewport.UPDATE_ALWAYS if map_visible else SubViewport.UPDATE_DISABLED)
+	if map_visible:
+		_refresh_systems()
 
 func _gui_input(event: InputEvent) -> void:
 	if not visible:

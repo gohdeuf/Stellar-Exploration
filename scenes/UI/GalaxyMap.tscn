@@ -21,6 +21,7 @@ stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="ViewportContainer"]
 size = Vector2i(1280, 720)
+own_world_3d = true
 
 [node name="MapWorld" type="Node3D" parent="ViewportContainer/SubViewport"]
 
