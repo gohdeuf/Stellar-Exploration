@@ -7,7 +7,11 @@ func _ready() -> void:
 	_label = Label.new(); _label.position = Vector2(10, 10)
 	_label.add_theme_color_override("font_color", Color(1,1,1,0.85)); add_child(_label)
 	_refresh_text()
-	Locale.language_changed.connect(func(_lang: String) -> void: _refresh_text())
+	_update_button_text()
+	Locale.language_changed.connect(func(_lang: String) -> void:
+		_refresh_text()
+		_update_button_text()
+	)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("cycle_language"): Locale.cycle_language()

@@ -34,6 +34,8 @@ func _build_ui() -> void:
 	btn_fc.pressed.connect(_toggle_fusion_cores); btn_row.add_child(btn_fc)
 	var btn_am := Button.new(); btn_am.text="AM Ein/Aus"; btn_am.custom_minimum_size=Vector2(130,0)
 	btn_am.pressed.connect(_toggle_am_factories); btn_row.add_child(btn_am)
+	var btn_refine := Button.new(); btn_refine.text="Refinieren"; btn_refine.custom_minimum_size=Vector2(130,0)
+	btn_refine.pressed.connect(_refine_durasteel); btn_row.add_child(btn_refine)
 	var sep2 := HSeparator.new(); vbox.add_child(sep2)
 	var hint := Label.new(); hint.text="[D] Einlagern\n[W] Auslagern\n[H] Schliessen"
 	hint.add_theme_color_override("font_color",Color(0.6,0.6,0.6)); hint.add_theme_font_size_override("font_size",12); vbox.add_child(hint)
@@ -103,12 +105,18 @@ func _refresh() -> void:
 			am_rate += base*eff*star
 
 	var cap_min: int = st_count * StorageContainer.CAPACITY_PER_UNIT["minerals"]
+	var cap_hyd: int = st_count * StorageContainer.CAPACITY_PER_UNIT["hydrogen"]
 	var cap_deu: int = st_count * StorageContainer.CAPACITY_PER_UNIT["deuterium"]
+	var cap_tri: int = st_count * StorageContainer.CAPACITY_PER_UNIT["tritium"]
 	var cap_am:  int = st_count * StorageContainer.CAPACITY_PER_UNIT["antimatter"]
+	var cap_dur: int = st_count * StorageContainer.CAPACITY_PER_UNIT["durasteel"]
 	var stored: Dictionary = GameDatabase.get_station_storage(sid)
 	var st_min: int = int(stored.get("minerals",  0.0))
+	var st_hyd: int = int(stored.get("hydrogen",  0.0))
 	var st_deu: int = int(stored.get("deuterium", 0.0))
+	var st_tri: int = int(stored.get("tritium", 0.0))
 	var st_am:  int = int(stored.get("antimatter",0.0))
+	var st_dur: int = int(stored.get("durasteel",0.0))
 	var dist: int   = int(ship.global_position.distance_to(_nearest_hub.global_position))
 	var orbit_tag: String = " [ORBIT]" if is_orbital else ""
 
@@ -121,8 +129,11 @@ func _refresh() -> void:
 		("Bohrer: %dx\n" % drill_count if drill_count>0 else "") +
 		"─────────────────\n" +
 		"Lager (Min): %d / %d\n" % [st_min, cap_min] +
+		"Lager (H2):  %d / %d\n" % [st_hyd, cap_hyd] +
 		"Lager (Deu): %d / %d\n" % [st_deu, cap_deu] +
-		"Lager (AM):  %d / %d"   % [st_am,  cap_am]
+		"Lager (T3):  %d / %d\n" % [st_tri, cap_tri] +
+		"Lager (AM):  %d / %d\n" % [st_am, cap_am] +
+		"Lager (Dura): %d / %d" % [st_dur, cap_dur]
 	)
 
 func _deposit() -> void:
@@ -137,13 +148,25 @@ func _deposit() -> void:
 	GameDatabase.deposit_to_station(sid,
 		st_count*StorageContainer.CAPACITY_PER_UNIT["minerals"],
 		st_count*StorageContainer.CAPACITY_PER_UNIT["deuterium"],
-		st_count*StorageContainer.CAPACITY_PER_UNIT["antimatter"])
+		st_count*StorageContainer.CAPACITY_PER_UNIT["antimatter"],
+		st_count*StorageContainer.CAPACITY_PER_UNIT["hydrogen"],
+		st_count*StorageContainer.CAPACITY_PER_UNIT["tritium"],
+		st_count*StorageContainer.CAPACITY_PER_UNIT["durasteel"])
 	if _hud: _hud.show_message(Locale.t("station.deposited")); _refresh()
 
 func _withdraw() -> void:
 	if _nearest_hub==null: return
 	GameDatabase.withdraw_from_station(_get_hub_station_sid(_nearest_hub))
 	if _hud: _hud.show_message(Locale.t("station.withdrawn")); _refresh()
+
+func _refine_durasteel() -> void:
+	if _nearest_hub==null: return
+	var sid := _get_hub_station_sid(_nearest_hub)
+	if GameDatabase.refine_station_durasteel(sid, 25.0, 10.0):
+		if _hud: _hud.show_message(Locale.t("station.refined"))
+	else:
+		if _hud: _hud.show_message(Locale.t("station.refine_missing"))
+	_refresh()
 
 func _toggle_fusion_cores() -> void:
 	if _nearest_hub==null: return

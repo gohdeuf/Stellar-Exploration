@@ -24,6 +24,9 @@ func _process(delta: float) -> void:
 func _refresh() -> void:
 	_label.text = Locale.t("hud.inventory", {
 		"minerals":   GameDatabase.get_resource("minerals"),
+		"hydrogen":   GameDatabase.get_resource("hydrogen"),
 		"deuterium":  GameDatabase.get_resource("deuterium"),
+		"tritium":    GameDatabase.get_resource("tritium"),
 		"antimatter": GameDatabase.get_resource("antimatter"),
+		"durasteel":  GameDatabase.get_resource("durasteel"),
 	})

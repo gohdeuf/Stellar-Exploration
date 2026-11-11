@@ -3,7 +3,14 @@ extends Node3D
 # Lager-Modul fuer Stationsressourcen.
 # Jeder Container erhoht die Stationskapazitaet um CAPACITY_PER_UNIT.
 
-const CAPACITY_PER_UNIT := {"minerals": 5000, "deuterium": 2000, "antimatter": 200}
+const CAPACITY_PER_UNIT := {
+	"minerals": 5000,
+	"hydrogen": 8000,
+	"deuterium": 2000,
+	"tritium": 1500,
+	"antimatter": 200,
+	"durasteel": 500,
+}
 
 func _ready() -> void:
 	add_to_group("stations")

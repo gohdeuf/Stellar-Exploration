@@ -9,20 +9,39 @@ var camera_rig:    CameraRig
 var world_manager: WorldManager
 var soi_tracker:   SOITracker
 var _soi_notif:    SOINotification
+var _start_menu: StartMenu
+var _pause_menu: PauseMenu
 var _save_timer:   float = 0.0
 
 func _ready() -> void:
+	_show_start_menu()
+
+func _show_start_menu() -> void:
+	_start_menu = preload("res://scripts/ui/StartMenu.gd").new()
+	add_child(_start_menu)
+	_start_menu.singleplayer_requested.connect(_on_singleplayer_requested)
+	_start_menu.quit_requested.connect(_quit_game)
+
+func _on_singleplayer_requested() -> void:
 	if GameDatabase.needs_seed_setup:
-		var d: PackedScene = preload("res://scenes/UI/WorldSeedDialog.tscn")
-		var dlg: WorldSeedDialog = d.instantiate(); add_child(dlg)
-		dlg.seed_confirmed.connect(_on_world_seed_confirmed.bind(dlg))
+		_start_menu.hide_menu()
+		var dialog: WorldSeedDialog = preload("res://scenes/UI/WorldSeedDialog.tscn").instantiate()
+		add_child(dialog)
+		dialog.seed_confirmed.connect(_on_world_seed_confirmed.bind(dialog))
 	else:
+		_start_menu.hide_menu()
 		_start_game()
 
 func _on_world_seed_confirmed(custom_seed_text: String, dialog: WorldSeedDialog) -> void:
-	GameDatabase.finish_new_world_setup(custom_seed_text); dialog.queue_free(); _start_game()
+	GameDatabase.finish_new_world_setup(custom_seed_text)
+	dialog.queue_free()
+	if _start_menu != null:
+		_start_menu.hide_menu()
+	_start_game()
 
 func _start_game() -> void:
+	if ship != null:
+		return
 	_setup_environment()
 	ship = preload("res://scenes/Ship.tscn").instantiate() as Ship
 	add_child(ship)
@@ -39,6 +58,7 @@ func _start_game() -> void:
 	bridge_view.set_ship_ref(ship)
 
 	world_manager = WorldManager.new(); add_child(world_manager); world_manager.set_player(ship)
+	world_manager.set_nebula_shader(load("res://assets/world/shader/nebula.gdshader") as Shader)
 	soi_tracker   = SOITracker.new();   add_child(soi_tracker);   soi_tracker.set_player(ship)
 
 	_soi_notif = SOINotification.new(); add_child(_soi_notif)
@@ -80,6 +100,42 @@ func _start_game() -> void:
 	add_child(preload("res://scenes/UI/InventoryHUD.tscn").instantiate())
 	if TouchControls.should_show():
 		add_child(preload("res://scenes/UI/TouchControls.tscn").instantiate())
+	_pause_menu = preload("res://scripts/ui/PauseMenu.gd").new()
+	add_child(_pause_menu)
+	_pause_menu.main_menu_requested.connect(_return_to_main_menu)
+	_pause_menu.quit_requested.connect(_quit_game)
+	_pause_menu.set_gameplay_menu_active(true)
+
+func _return_to_main_menu() -> void:
+	_save_game_state()
+	get_tree().paused = false
+	for child in get_children():
+		remove_child(child)
+		child.queue_free()
+	ship = null
+	camera_rig = null
+	world_manager = null
+	soi_tracker = null
+	_soi_notif = null
+	_pause_menu = null
+	_start_menu = null
+	_show_start_menu()
+
+func _save_game_state() -> void:
+	if ship == null:
+		return
+	var shield: ShieldSystem = ship.get_meta("shield_system", null)
+	if shield != null:
+		GameDatabase.set_shield_integrity(shield.integrity)
+		GameDatabase.set_shield_active(shield.shield_active)
+	GameDatabase.save_player_state(ship.global_position, ship.quaternion)
+	if world_manager != null:
+		world_manager.save_all_sector_resources()
+
+func _quit_game() -> void:
+	_save_game_state()
+	GameDatabase.close_database()
+	get_tree().quit()
 
 # ── SOI-Callbacks ─────────────────────────────────────────────────────────────
 func _on_enter_system(sys: Dictionary) -> void:
@@ -110,6 +166,10 @@ func _setup_environment() -> void:
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color  = Color(0.15, 0.16, 0.25)
 	environment.ambient_light_energy = 0.6
+	environment.volumetric_fog_enabled = true
+	environment.volumetric_fog_density = 0.0
+	environment.volumetric_fog_length = 2400.0
+	environment.volumetric_fog_sky_affect = 1.0
 	env.environment = environment; add_child(env)
 
 func _build_procedural_starfield() -> ImageTexture:
@@ -133,9 +193,3 @@ func _process(delta: float) -> void:
 	if _save_timer >= SAVE_INTERVAL and ship != null:
 		_save_timer = 0.0
 		GameDatabase.save_player_state(ship.global_position, ship.quaternion)
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("quit_game"):
-		if ship != null:          GameDatabase.save_player_state(ship.global_position, ship.quaternion)
-		if world_manager != null: world_manager.save_all_sector_resources()
-		get_tree().quit()

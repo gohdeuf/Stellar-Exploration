@@ -30,6 +30,55 @@ func get_cached_systems() -> Array:
 		if not sys.is_empty(): result.append(sys)
 	return result
 
+func get_sector_nebulae(sector_id: String) -> Array[Dictionary]:
+	var nebula_seed: int = SECTOR_UTILS.seed_for_sector(
+		GameDatabase.world_seed, sector_id + "_nebula")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = nebula_seed
+	if rng.randf() >= NEBULA_SPAWN_CHANCE:
+		return []
+
+	var coords: Vector3i = SECTOR_UTILS.sector_id_to_coords(sector_id)
+	var sector_origin := Vector3(coords.x, coords.y, coords.z) * SECTOR_UTILS.SECTOR_SIZE
+	var nebulae: Array[Dictionary] = []
+	var nebula_count: int = rng.randi_range(NEBULA_COUNT_MIN, NEBULA_COUNT_MAX)
+	for nebula_index in range(nebula_count):
+		var name_rng := RandomNumberGenerator.new()
+		name_rng.seed = SECTOR_UTILS.seed_for_sector(
+			GameDatabase.world_seed, "%s_nebula_name_%d" % [sector_id, nebula_index])
+		nebulae.append({
+			"name": _generate_nebula_name(name_rng),
+			"position": sector_origin + Vector3(
+				rng.randf_range(NEBULA_EDGE_MARGIN, SECTOR_UTILS.SECTOR_SIZE - NEBULA_EDGE_MARGIN),
+				rng.randf_range(NEBULA_EDGE_MARGIN, SECTOR_UTILS.SECTOR_SIZE - NEBULA_EDGE_MARGIN),
+				rng.randf_range(NEBULA_EDGE_MARGIN, SECTOR_UTILS.SECTOR_SIZE - NEBULA_EDGE_MARGIN)),
+			"size": Vector3(
+				rng.randf_range(NEBULA_SIZE_MIN, NEBULA_SIZE_MAX),
+				rng.randf_range(NEBULA_SIZE_MIN * 0.55, NEBULA_SIZE_MAX * 0.65),
+				rng.randf_range(NEBULA_SIZE_MIN, NEBULA_SIZE_MAX)),
+			"color": Color.from_hsv(rng.randf_range(0.55, 0.9), 0.65, 1.0),
+			"resources": {
+				"hydrogen": rng.randf_range(350.0, 1200.0),
+				"deuterium": rng.randf_range(50.0, 200.0),
+				"tritium": rng.randf_range(1.0, 20.0),
+			},
+		})
+	return nebulae
+
+func _generate_nebula_name(rng: RandomNumberGenerator) -> String:
+	var feature: String = NEBULA_FEATURES[rng.randi_range(0, NEBULA_FEATURES.size() - 1)]
+	var constellation: String = NEBULA_CONSTELLATIONS[
+		rng.randi_range(0, NEBULA_CONSTELLATIONS.size() - 1)]
+	match rng.randi_range(0, 3):
+		0:
+			return "%s Nebula" % feature
+		1:
+			return "%s %s Nebula" % [constellation, feature]
+		2:
+			return "%s %s" % [constellation, ["Veil", "Cloud", "Complex"][rng.randi_range(0, 2)]]
+		_:
+			return "%s %s" % [feature, ["Cloud", "Veil", "Complex"][rng.randi_range(0, 2)]]
+
 func _orbit_speed_deg(orbit_radius: float) -> float:
 	var period: float = ORBIT_REFERENCE_PERIOD \
 		* pow(orbit_radius / ORBIT_REFERENCE_RADIUS, 1.5)
