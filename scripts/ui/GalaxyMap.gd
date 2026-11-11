@@ -130,6 +130,12 @@ func _gui_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	if not visible: return
+	_sync_viewport_size()
+	_update_map_origin()
+	_update_camera()
+	_update_station_positions()
+	_update_planet_positions()
+	_update_readout()
 	_refresh_timer += delta
 	_planet_refresh_timer += delta
 	if _refresh_timer >= refresh_interval:

@@ -1,6 +1,4 @@
 extends Node
-const SAVE_DIR    := "user://savegame/"
-const DB_PATH     := SAVE_DIR + "stellar_exploration.db"
 const DEFAULT_RESOURCES := {
 	"minerals": 0.0,
 	"hydrogen": 0.0,
@@ -10,6 +8,10 @@ const DEFAULT_RESOURCES := {
 	"durasteel": 0.0,
 }
 
+const SAVE_DIR    := "user://savegame/"
+const DB_PATH     := SAVE_DIR + "stellar_exploration.db"
+
+# ── Spielstand (wird aus DB geladen) ──────────────────────────────────────────
 var world_seed:       int        = 0
 var player_position:  Vector3    = Vector3.ZERO
 var player_rotation:  Quaternion = Quaternion.IDENTITY
@@ -19,10 +21,15 @@ var needs_seed_setup: bool   = false
 var is_docked:        bool   = false
 var docked_sector_id: String = ""
 var docked_position:  Vector3 = Vector3.ZERO
-var station_storage:  Dictionary = {}
+
+var db: SQLite = null
+var _db_ok: bool = false
 
 func _ready() -> void:
-	_ensure_save_dirs(); _load_or_create_world_meta()
+	_ensure_save_dirs()
+	_init_database()
+	_load_or_create_world_meta()
+	WorldCoordinates.initialize(player_position)
 
 func _ensure_save_dirs() -> void:
 	var dir := DirAccess.open("user://")
@@ -91,20 +98,17 @@ func _ensure_column(table_name: String, column_name: String, column_def: String)
 
 # ── Welt-Meta laden / anlegen ─────────────────────────────────────────────────
 func _load_or_create_world_meta() -> void:
-	if not FileAccess.file_exists(META_FILE): needs_seed_setup = true; return
-	var f := FileAccess.open(META_FILE, FileAccess.READ)
-	if f == null: needs_seed_setup = true; return
-	var text := f.get_as_text(); f.close()
-	var parsed: Variant = JSON.parse_string(text)
-	if not (parsed is Dictionary): needs_seed_setup = true; return
-	var data: Dictionary = parsed
-	if not data.has("world_seed"): needs_seed_setup = true; return
-	world_seed       = _parse_seed_value(data["world_seed"])
-	var p: Dictionary = data.get("player_position",{"x":0.0,"y":0.0,"z":0.0})
-	player_position  = Vector3(p.get("x",0.0),p.get("y",0.0),p.get("z",0.0))
-	var r: Dictionary = data.get("player_rotation",{"x":0.0,"y":0.0,"z":0.0,"w":1.0})
-	player_rotation  = Quaternion(r.get("x",0.0),r.get("y",0.0),r.get("z",0.0),r.get("w",1.0))
-	var inv: Dictionary = data.get("player_inventory",{"minerals":0.0,"deuterium":0.0,"antimatter":50.0})
+	if not _db_ok: needs_seed_setup = true; return
+
+	db.query("SELECT * FROM world_meta WHERE id = 1")
+	if db.query_result.is_empty():
+		needs_seed_setup = true
+		return
+
+	var row: Dictionary = db.query_result[0]
+	world_seed = _parse_seed_value(row.get("world_seed", 0))
+	player_position  = Vector3(row.get("pos_x", 0.0), row.get("pos_y", 0.0), row.get("pos_z", 0.0))
+	player_rotation  = Quaternion(row.get("rot_x", 0.0), row.get("rot_y", 0.0), row.get("rot_z", 0.0), row.get("rot_w", 1.0))
 	player_inventory = {
 		"minerals":   float(row.get("inv_minerals",   0.0)),
 		"hydrogen":   float(row.get("inv_hydrogen",   0.0)),
@@ -137,8 +141,9 @@ func finish_new_world_setup(custom_seed_text: String = "") -> void:
 	if custom_seed_text.strip_edges() != "":
 		set_world_seed_from_text(custom_seed_text.strip_edges())
 	else:
-		world_seed = _generate_random_seed(); save_world_meta()
+		world_seed = _generate_random_seed()
 	needs_seed_setup = false
+	_insert_world_meta()
 
 func set_world_seed_from_text(text: String) -> void:
 	var sha := text.sha256_buffer(); var seed_int: int = 0
@@ -169,22 +174,18 @@ func set_docked_state(docked: bool, sector_id: String, pos: Vector3) -> void:
 	save_world_meta()
 
 func save_world_meta() -> void:
-	var data := {
-		"world_seed":       str(world_seed),
-		"player_position":  {"x":player_position.x,  "y":player_position.y,  "z":player_position.z},
-		"player_rotation":  {"x":player_rotation.x,  "y":player_rotation.y,  "z":player_rotation.z, "w":player_rotation.w},
-		"player_inventory": player_inventory,
-		"is_docked":        is_docked,
-		"docked_sector_id": docked_sector_id,
-		"docked_position":  {"x":docked_position.x,  "y":docked_position.y,  "z":docked_position.z},
-		"station_storage":  station_storage,
-	}
-	var f := FileAccess.open(META_FILE, FileAccess.WRITE)
-	if f == null: push_error("GameDatabase: world_meta.json nicht schreibbar"); return
-	f.store_string(JSON.stringify(data, "  ")); f.close()
+	_insert_world_meta()
 
 func save_player_state(pos: Vector3, rot: Quaternion) -> void:
-	player_position = pos; player_rotation = rot; save_world_meta()
+	player_position = WorldCoordinates.to_world_position(pos)
+	player_rotation = rot
+	save_world_meta()
+
+# close Database on exit
+func close_database() -> void:
+	if db != null and _db_ok:
+		db.close_db()
+	_db_ok = false
 
 # ── Spieler-Inventar ──────────────────────────────────────────────────────────
 func _resource_dict(values: Dictionary = {}) -> Dictionary:
@@ -206,21 +207,40 @@ func spend_resource(type: String, amount: int) -> bool:
 	if int(current) < amount: return false
 	player_inventory[type] = current - float(amount); return true
 
-# ── Stations-Ressourcen (lokal, unabhängig vom Spieler-Inventar) ──────────────
+# ── Schild-System ─────────────────────────────────────────────────────────────
+func get_shield_integrity() -> float:
+	return float(player_shield.get("integrity", 100.0))
+
+func set_shield_integrity(value: float) -> void:
+	player_shield["integrity"] = clampf(value, 0.0, 100.0)
+
+func is_shield_active() -> bool:
+	return bool(player_shield.get("active", true))
+
+func set_shield_active(active: bool) -> void:
+	player_shield["active"] = active
+
+func damage_shield(amount: float) -> void:
+	player_shield["integrity"] = clampf(float(player_shield.get("integrity", 100.0)) - amount, 0.0, 100.0)
+
+func repair_shield(amount: float) -> void:
+	player_shield["integrity"] = clampf(float(player_shield.get("integrity", 100.0)) + amount, 0.0, 100.0)
+
+# ── Stations-Ressourcen ───────────────────────────────────────────────────────
 func get_station_resource(sid: String, type: String) -> int:
 	return int(float(get_station_storage(sid).get(type, 0.0)))
 
 func add_station_resource(sid: String, type: String, amount: float) -> void:
 	var st := get_station_storage(sid)
 	st[type] = float(st.get(type, 0.0)) + amount
-	station_storage[sid] = st   # kein save_world_meta() hier – Spar-Zyklus reicht
+	_upsert_station_storage(sid, st)
 
 func spend_station_resource(sid: String, type: String, amount: float) -> bool:
 	var st := get_station_storage(sid)
 	var current: float = float(st.get(type, 0.0))
 	if current < amount: return false
 	st[type] = current - amount
-	station_storage[sid] = st
+	_upsert_station_storage(sid, st)
 	return true
 
 func refine_station_durasteel(sid: String, minerals_cost: float = 25.0, hydrogen_cost: float = 10.0) -> bool:
@@ -248,7 +268,9 @@ func _upsert_station_storage(sid: String, st: Dictionary) -> void:
 	db.query(sql)
 
 func get_station_id(hub_pos: Vector3) -> String:
-	return "station_%d_%d_%d" % [int(round(hub_pos.x)), int(round(hub_pos.y)), int(round(hub_pos.z))]
+	var world_position := WorldCoordinates.to_world_position(hub_pos)
+	return "station_%d_%d_%d" % [
+		int(round(world_position.x)), int(round(world_position.y)), int(round(world_position.z))]
 
 func get_station_storage(sid: String) -> Dictionary:
 	if not _db_ok: return _resource_dict({"minerals":0.0,"hydrogen":0.0,"deuterium":0.0,"tritium":0.0,"antimatter":0.0,"durasteel":0.0})
@@ -362,25 +384,79 @@ func save_orbital_station_angle(sector_id: String, orbit_id: String, angle_deg: 
 		entry["orbit_angle_deg"] = angle_deg
 		data["orbital_stations"] = orbital; save_sector_data(sector_id, data); return
 
-# ── Sektor ────────────────────────────────────────────────────────────────────
-func _sector_file(sector_id: String) -> String: return SECTORS_DIR + sector_id + ".json"
+# ── Systeme (NEU: fuer GalaxyMap) ─────────────────────────────────────────────
+func save_system(system_data: Dictionary) -> void:
+	if not _db_ok or system_data.is_empty(): return
+	var sid: String = system_data.get("system_id", "")
+	var sec_id: String = system_data.get("sector_id", "")
+	var pos: Vector3 = system_data.get("position", Vector3.ZERO)
+	var planets: Array = system_data.get("planets", [])
+	var planet_json: String = JSON.stringify(planets)
+	var sql := "INSERT INTO systems (system_id, sector_id, name, pos_x, pos_y, pos_z, soi, planet_data, created_at) VALUES ('%s', '%s', '%s', %.6f, %.6f, %.6f, %.6f, '%s', %d) ON CONFLICT(sector_id) DO UPDATE SET name = excluded.name, pos_x = excluded.pos_x, pos_y = excluded.pos_y, pos_z = excluded.pos_z, soi = excluded.soi, planet_data = excluded.planet_data" % [
+		sid, sec_id,
+		system_data.get("name", "").replace("'", "''"),
+		pos.x, pos.y, pos.z,
+		system_data.get("sphere_of_influence", 0.0),
+		planet_json.replace("'", "''"),
+		Time.get_unix_time_from_system()
+	]
+	db.query(sql)
 
+func get_all_systems() -> Array:
+	if not _db_ok: return []
+	db.query("SELECT * FROM systems")
+	var result: Array = []
+	for row in db.query_result:
+		var pos := Vector3(float(row.get("pos_x", 0.0)), float(row.get("pos_y", 0.0)), float(row.get("pos_z", 0.0)))
+		var planets: Variant = JSON.parse_string(str(row.get("planet_data", "[]")))
+		result.append({
+			"system_id": row.get("system_id", ""),
+			"sector_id": row.get("sector_id", ""),
+			"name":      row.get("name", ""),
+			"position":  pos,
+			"sphere_of_influence": float(row.get("soi", 0.0)),
+			"planets":   planets if planets is Array else [],
+		})
+	return result
+
+func get_system_revision() -> String:
+	if not _db_ok: return "0:0"
+	db.query("SELECT COUNT(*) AS system_count, COALESCE(MAX(created_at), 0) AS latest_system FROM systems")
+	if db.query_result.is_empty(): return "0:0"
+	var row: Dictionary = db.query_result[0]
+	return "%s:%s" % [row.get("system_count", 0), row.get("latest_system", 0)]
+
+func has_system(sector_id: String) -> bool:
+	if not _db_ok: return false
+	db.query("SELECT 1 FROM systems WHERE sector_id = '%s'" % sector_id)
+	return not db.query_result.is_empty()
+
+# ── Sektor-Daten ──────────────────────────────────────────────────────────────
 func load_sector_data(sector_id: String) -> Dictionary:
-	var path := _sector_file(sector_id)
-	if not FileAccess.file_exists(path): return {}
-	var f := FileAccess.open(path, FileAccess.READ); if f == null: return {}
-	var text := f.get_as_text(); f.close()
-	var parsed: Variant = JSON.parse_string(text)
-	return parsed if parsed is Dictionary else {}
+	if not _db_ok: return {}
+	db.query("SELECT * FROM sectors WHERE sector_id = '%s'" % sector_id)
+	if db.query_result.is_empty(): return {}
+	var row: Dictionary = db.query_result[0]
+	var result := {}
+	var fields := ["stations", "ships", "orbital_stations", "planet_resources", "planet_deuterium"]
+	for f in fields:
+		var parsed: Variant = JSON.parse_string(str(row.get(f, "{}")))
+		result[f] = parsed if parsed is Dictionary or parsed is Array else {} if f in ["planet_resources", "planet_deuterium"] else []
+	return result
 
 func save_sector_data(sector_id: String, data: Dictionary) -> void:
-	var f := FileAccess.open(_sector_file(sector_id), FileAccess.WRITE)
-	if f == null: push_error("Sektordatei nicht schreibbar: %s" % sector_id); return
-	f.store_string(JSON.stringify(data, "  ")); f.close()
+	if not _db_ok: return
+	var stations := JSON.stringify(data.get("stations", []))
+	var ships := JSON.stringify(data.get("ships", []))
+	var orbital := JSON.stringify(data.get("orbital_stations", []))
+	var min_ov := JSON.stringify(data.get("planet_resources", {}))
+	var deu_ov := JSON.stringify(data.get("planet_deuterium", {}))
+	var sql := "INSERT INTO sectors (sector_id, stations, ships, orbital_stations, planet_resources, planet_deuterium) VALUES ('%s', '%s', '%s', '%s', '%s', '%s') ON CONFLICT(sector_id) DO UPDATE SET stations = excluded.stations, ships = excluded.ships, orbital_stations = excluded.orbital_stations, planet_resources = excluded.planet_resources, planet_deuterium = excluded.planet_deuterium" % [sector_id, stations, ships, orbital, min_ov, deu_ov]
+	db.query(sql)
 
 func save_planet_state(sector_id: String, planet_name: String, minerals: float, deuterium: float) -> void:
 	var data := load_sector_data(sector_id)
-	var min_ov: Dictionary = data.get("planet_resources",{}); var deu_ov: Dictionary = data.get("planet_deuterium",{})
+	var min_ov: Dictionary = data.get("planet_resources", {}); var deu_ov: Dictionary = data.get("planet_deuterium", {})
 	min_ov[planet_name] = minerals; deu_ov[planet_name] = deuterium
 	data["planet_resources"] = min_ov; data["planet_deuterium"] = deu_ov; save_sector_data(sector_id, data)
 

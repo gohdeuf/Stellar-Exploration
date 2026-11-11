@@ -37,7 +37,7 @@ func _build_ui() -> void:
 	var btn_refine := Button.new(); btn_refine.text="Refinieren"; btn_refine.custom_minimum_size=Vector2(130,0)
 	btn_refine.pressed.connect(_refine_durasteel); btn_row.add_child(btn_refine)
 	var sep2 := HSeparator.new(); vbox.add_child(sep2)
-	var hint := Label.new(); hint.text="[D] Einlagern\n[W] Auslagern\n[H] Schliessen"
+	var hint := Label.new(); hint.text="[D] Einlagern\n[W] Auslagern\n[F2] Schliessen"
 	hint.add_theme_color_override("font_color",Color(0.6,0.6,0.6)); hint.add_theme_font_size_override("font_size",12); vbox.add_child(hint)
 	get_tree().root.call_deferred("add_child", _ui)
 
@@ -49,6 +49,10 @@ func close_panel() -> void:
 	if not is_open: return
 	is_open=false; _ui.visible=false
 
+func toggle_panel() -> void:
+	if is_open: close_panel()
+	else: open_panel()
+
 func _process(delta: float) -> void:
 	if not is_open: return
 	_timer += delta
@@ -57,8 +61,7 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey or event is InputEventMouseButton or event is InputEventJoypadButton): return
 	if Input.is_action_just_pressed("station_management"):
-		if is_open: close_panel()
-		else: open_panel()
+		toggle_panel()
 		return
 	if not is_open: return
 	if Input.is_action_just_pressed("deposit_resources"):  _deposit()

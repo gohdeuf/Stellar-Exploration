@@ -90,7 +90,9 @@ func _find_station_sid() -> String:
 static func _get_star_proximity_bonus(pos: Vector3) -> float:
 	var best: float = 0.0
 	for sys in SectorGenerator.get_cached_systems():
-		var dist: float = pos.distance_to(sys["position"]); var soi: float = sys["sphere_of_influence"]
+		var system_local_position: Vector3 = WorldCoordinates.to_local_position(sys["position"])
+		var dist: float = pos.distance_to(system_local_position)
+		var soi: float = sys["sphere_of_influence"]
 		if dist > soi: continue
 		var bonus: float = 1.0 + (1.0 - clamp(dist/soi,0.0,1.0)) * (MAX_STAR_BONUS - 1.0)
 		if bonus > best: best = bonus

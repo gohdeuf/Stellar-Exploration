@@ -56,6 +56,9 @@ func _start_game() -> void:
 	ship.add_child(bridge_view)
 	camera_rig.set_bridge_view(bridge_view)
 	bridge_view.set_ship_ref(ship)
+	var bridge_indicator := preload("res://scripts/ui/BridgeDirectionIndicator.gd").new()
+	add_child(bridge_indicator)
+	bridge_indicator.set_bridge_view(bridge_view)
 
 	world_manager = WorldManager.new(); add_child(world_manager); world_manager.set_player(ship)
 	world_manager.set_nebula_shader(load("res://assets/world/shader/nebula.gdshader") as Shader)
@@ -82,6 +85,13 @@ func _start_game() -> void:
 	var ship_reactor := ShipReactor.new(); ship.add_child(ship_reactor)
 	ship_reactor.setup(ship, _soi_notif)
 
+	# ── Schild-System ──────────────────────────────────────────────────────────
+	var shield_system := ShieldSystem.new(); ship.add_child(shield_system)
+	shield_system.setup(ship, _soi_notif)
+	var shield_data: Dictionary = GameDatabase.player_shield
+	shield_system.integrity = float(shield_data.get("integrity", 100.0))
+	shield_system.shield_active = bool(shield_data.get("active", true))
+
 	var docking_system := DockingSystem.new(); add_child(docking_system)
 	docking_system.setup(ship, _soi_notif)
 
@@ -92,11 +102,13 @@ func _start_game() -> void:
 	add_child(station_mgmt); station_mgmt.setup(ship, _soi_notif)
 	docking_system.docked.connect(func(_st: Node3D) -> void: station_mgmt.open_panel())
 
-	ship.init_systems(weapon_system, warp_drive, crew_system)
+	ship.init_systems(weapon_system, warp_drive, crew_system, shield_system)
 
 	var map: GalaxyMap = preload("res://scenes/UI/GalaxyMap.tscn").instantiate()
 	add_child(map); map.set_player(ship)
-	add_child(preload("res://scenes/UI/HelpOverlay.tscn").instantiate())
+	var help_overlay := preload("res://scenes/UI/HelpOverlay.tscn").instantiate() as HelpOverlay
+	add_child(help_overlay)
+	help_overlay.setup(crew_system, station_mgmt)
 	add_child(preload("res://scenes/UI/InventoryHUD.tscn").instantiate())
 	if TouchControls.should_show():
 		add_child(preload("res://scenes/UI/TouchControls.tscn").instantiate())
@@ -122,6 +134,11 @@ func _return_to_main_menu() -> void:
 	_show_start_menu()
 
 func _save_game_state() -> void:
+	_save_player_state()
+	if world_manager != null:
+		world_manager.save_all_sector_resources()
+
+func _save_player_state() -> void:
 	if ship == null:
 		return
 	var shield: ShieldSystem = ship.get_meta("shield_system", null)
@@ -129,8 +146,6 @@ func _save_game_state() -> void:
 		GameDatabase.set_shield_integrity(shield.integrity)
 		GameDatabase.set_shield_active(shield.shield_active)
 	GameDatabase.save_player_state(ship.global_position, ship.quaternion)
-	if world_manager != null:
-		world_manager.save_all_sector_resources()
 
 func _quit_game() -> void:
 	_save_game_state()
@@ -192,4 +207,9 @@ func _process(delta: float) -> void:
 	_save_timer += delta
 	if _save_timer >= SAVE_INTERVAL and ship != null:
 		_save_timer = 0.0
-		GameDatabase.save_player_state(ship.global_position, ship.quaternion)
+		_save_player_state()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("quit_game"):
+		_quit_game()
+		get_viewport().set_input_as_handled()
