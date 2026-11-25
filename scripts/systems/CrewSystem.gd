@@ -25,11 +25,11 @@ func setup(p_ship: Node3D, p_hud: Node = null) -> void:
 func _process(delta: float) -> void:
 	if ship == null: return
 	if Input.is_action_just_pressed("emergency_ai_toggle"):
-		_toggle_emergency_ai()
+		toggle_emergency_ai()
 	if emergency_ai_active:
 		_run_emergency_ai(delta)
 
-func _toggle_emergency_ai() -> void:
+func toggle_emergency_ai() -> void:
 	if emergency_ai_active:
 		emergency_ai_active = false
 		if _hud: _hud.show_message(Locale.t("crew.ai_disengaged"))

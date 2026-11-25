@@ -45,9 +45,10 @@ func _dock_to(station: Node3D) -> void:
 	tween.tween_property(ship, "global_position", dock_pos, 1.5) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.tween_property(ship, "quaternion", Quaternion.IDENTITY, 1.5)
-	var coords: Vector3i  = SectorUtils.world_to_sector_coords(station.global_position)
+	var coords: Vector3i  = WorldCoordinates.to_sector_coords(station.global_position)
 	var sector_id: String = SectorUtils.sector_coords_to_id(coords.x, coords.y, coords.z)
-	GameDatabase.set_docked_state(true, sector_id, dock_pos)
+	GameDatabase.set_docked_state(
+		true, sector_id, WorldCoordinates.to_world_position(dock_pos))
 	if _hud: _hud.show_message(Locale.t("docking.docked"))
 	docked.emit(station)
 

@@ -12,8 +12,8 @@ This roadmap outlines the core goals and milestones for the upcoming versions of
 * **Modular Recon Stations:** Enable AI to physisch build and stack sensor modules to spy on and analyze player behaviors.
 
 ### 🚀 Physics & Orbit Fixes
-* **First-Person Orbit Lock:** Fix the relative movement in first-person view. Ensure the ship locks onto the planet's orbital trajectory and rotation instead of drifting away.
-* **Orbit Mining Refinement:** Fine-tune resource extraction while locked in a stable planetary orbit.
+* **First-Person Orbit Lock:** ✅ The ship follows its orbit carrier's full transform, including rotation, during bridge view and across world rebases.
+* **Orbit Mining Refinement:** ✅ Manual extraction is limited to a nearby planet the ship is currently orbit-locked to; switching targets persists the previous planet's resources.
 
 ### 🏭 Economy & Logistics Foundation
 * **Physisch Rohstoff-Kette:** Implement local SQLite inventories for individual stations and freighters.

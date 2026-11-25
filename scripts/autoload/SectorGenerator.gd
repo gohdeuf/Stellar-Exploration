@@ -7,6 +7,21 @@ const MOON_CHANCE_ROCKY := 0.28; const MOON_CHANCE_GAS := 0.55
 const MAX_MOONS_ROCKY := 2;      const MAX_MOONS_GAS   := 4
 const SOL_SECTOR_ID := "Sector_Alpha_0_0_0"
 const SECTOR_UTILS  := preload("res://scripts/autoload/SectorUtils.gd")
+const NEBULA_SPAWN_CHANCE := 0.3
+const NEBULA_COUNT_MIN := 1
+const NEBULA_COUNT_MAX := 2
+const NEBULA_SIZE_MIN := 180.0
+const NEBULA_SIZE_MAX := 420.0
+const NEBULA_EDGE_MARGIN := 250.0
+const NEBULA_CONSTELLATIONS := [
+	"Orion", "Cygnus", "Carina", "Vela", "Serpens", "Aquila",
+	"Perseus", "Lupus", "Phoenix", "Andromeda", "Cassiopeia", "Sagittarius",
+]
+const NEBULA_FEATURES := [
+	"Rose", "Eagle", "Crab", "Lagoon", "Horsehead", "Helix",
+	"Rosette", "Tarantula", "Crescent", "Bubble", "Ghost", "Witch Head",
+	"Running Chicken",
+]
 
 # Kepler III: Erde-Orbit (200 Units) = 15 Minuten Echtzeit
 const ORBIT_REFERENCE_RADIUS := 200.0
@@ -49,6 +64,50 @@ func get_cached_systems() -> Array:
 		var sys: Dictionary = _cache[sid]
 		if not sys.is_empty(): result.append(sys)
 	return result
+
+func get_sector_nebulae(sector_id: String) -> Array[Dictionary]:
+	var nebula_seed: int = SECTOR_UTILS.seed_for_sector(
+		GameDatabase.world_seed, sector_id + "_nebula")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = nebula_seed
+	if rng.randf() >= NEBULA_SPAWN_CHANCE:
+		return []
+
+	var coords: Vector3i = SECTOR_UTILS.sector_id_to_coords(sector_id)
+	var sector_origin := Vector3(coords.x, coords.y, coords.z) * SECTOR_UTILS.SECTOR_SIZE
+	var nebulae: Array[Dictionary] = []
+	var nebula_count: int = rng.randi_range(NEBULA_COUNT_MIN, NEBULA_COUNT_MAX)
+	for nebula_index in range(nebula_count):
+		var name_rng := RandomNumberGenerator.new()
+		name_rng.seed = SECTOR_UTILS.seed_for_sector(
+			GameDatabase.world_seed, "%s_nebula_name_%d" % [sector_id, nebula_index])
+		nebulae.append({
+			"name": _generate_nebula_name(name_rng),
+			"position": sector_origin + Vector3(
+				rng.randf_range(NEBULA_EDGE_MARGIN, SECTOR_UTILS.SECTOR_SIZE - NEBULA_EDGE_MARGIN),
+				rng.randf_range(NEBULA_EDGE_MARGIN, SECTOR_UTILS.SECTOR_SIZE - NEBULA_EDGE_MARGIN),
+				rng.randf_range(NEBULA_EDGE_MARGIN, SECTOR_UTILS.SECTOR_SIZE - NEBULA_EDGE_MARGIN)),
+			"size": Vector3(
+				rng.randf_range(NEBULA_SIZE_MIN, NEBULA_SIZE_MAX),
+				rng.randf_range(NEBULA_SIZE_MIN * 0.55, NEBULA_SIZE_MAX * 0.65),
+				rng.randf_range(NEBULA_SIZE_MIN, NEBULA_SIZE_MAX)),
+			"color": Color.from_hsv(rng.randf_range(0.55, 0.9), 0.65, 1.0),
+		})
+	return nebulae
+
+func _generate_nebula_name(rng: RandomNumberGenerator) -> String:
+	var feature: String = NEBULA_FEATURES[rng.randi_range(0, NEBULA_FEATURES.size() - 1)]
+	var constellation: String = NEBULA_CONSTELLATIONS[
+		rng.randi_range(0, NEBULA_CONSTELLATIONS.size() - 1)]
+	match rng.randi_range(0, 3):
+		0:
+			return "%s Nebula" % feature
+		1:
+			return "%s %s Nebula" % [constellation, feature]
+		2:
+			return "%s %s" % [constellation, ["Veil", "Cloud", "Complex"][rng.randi_range(0, 2)]]
+		_:
+			return "%s %s" % [feature, ["Cloud", "Veil", "Complex"][rng.randi_range(0, 2)]]
 
 func _orbit_speed_deg(orbit_radius: float) -> float:
 	var period: float = ORBIT_REFERENCE_PERIOD \

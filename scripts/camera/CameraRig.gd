@@ -1,5 +1,5 @@
 class_name CameraRig
-extends Node3D
+extends XROrigin3D
 
 @export var follow_distance: float           = 0.26
 @export var follow_height:   float           = 0.10
@@ -16,7 +16,7 @@ var _free_cam_speed:  float
 var _bridge_view:     Node3D   = null
 
 func _ready() -> void:
-	camera = Camera3D.new(); add_child(camera); camera.current = true
+	camera = XRCamera3D.new(); add_child(camera); camera.current = true
 	_free_cam_speed = free_cam_base_speed
 
 func set_target(node: Node3D)    -> void: target       = node

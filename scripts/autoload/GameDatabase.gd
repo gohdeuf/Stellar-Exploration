@@ -186,7 +186,9 @@ func _upsert_station_storage(sid: String, st: Dictionary) -> void:
 	db.query(sql)
 
 func get_station_id(hub_pos: Vector3) -> String:
-	return "station_%d_%d_%d" % [int(round(hub_pos.x)), int(round(hub_pos.y)), int(round(hub_pos.z))]
+	var world_position := WorldCoordinates.to_world_position(hub_pos)
+	return "station_%d_%d_%d" % [
+		int(round(world_position.x)), int(round(world_position.y)), int(round(world_position.z))]
 
 func get_station_storage(sid: String) -> Dictionary:
 	if not _db_ok: return {"minerals":0.0,"deuterium":0.0,"antimatter":0.0}
