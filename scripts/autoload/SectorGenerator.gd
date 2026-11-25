@@ -50,12 +50,12 @@ func ensure_sector_generated(sector_id: String) -> Dictionary:
 	var result := _generate_sector(sector_id)
 	_apply_resource_overrides(sector_id, result)
 	_cache[sector_id] = result
-	
+
 	# NEU: System in die Datenbank speichern
 	if not result.is_empty():
 		GameDatabase.save_system(result)
 		system_updated.emit(result)
-	
+
 	return result
 
 func get_cached_systems() -> Array:
@@ -92,6 +92,11 @@ func get_sector_nebulae(sector_id: String) -> Array[Dictionary]:
 				rng.randf_range(NEBULA_SIZE_MIN * 0.55, NEBULA_SIZE_MAX * 0.65),
 				rng.randf_range(NEBULA_SIZE_MIN, NEBULA_SIZE_MAX)),
 			"color": Color.from_hsv(rng.randf_range(0.55, 0.9), 0.65, 1.0),
+			"resources": {
+				"hydrogen": rng.randf_range(350.0, 1200.0),
+				"deuterium": rng.randf_range(50.0, 200.0),
+				"tritium": rng.randf_range(1.0, 20.0),
+			},
 		})
 	return nebulae
 

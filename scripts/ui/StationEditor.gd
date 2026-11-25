@@ -4,12 +4,12 @@ extends Node
 static var is_editor_open: bool = false
 
 const EDITOR_RANGE          := 120.0
-const MIN_ATTACH_DIST       :=   6.0
+const MIN_ATTACH_DIST       :=   0.4
 const ORBIT_DETECT_RANGE    := 200.0   # Planeten-SOI für Orbitalstation
 const ORBIT_ALTITUDE        :=  30.0   # Einheiten über Planetenoberfläche
 const ORBIT_SPEED_DEG       :=   0.2   # °/Sek Stationsumlauf
 
-const MODULE_NAMES := ["main_station","fusion_core","am_factory_small","am_factory_big","storage_container","mining_drill"]
+const MODULE_NAMES := ["main_station","fusion_core","am_factory_small","am_factory_big","storage_container","mining_drill","refinery"]
 
 const COSTS := {
 	"main_station":      [500, 100],
@@ -18,32 +18,36 @@ const COSTS := {
 	"am_factory_big":    [600, 200],
 	"storage_container": [400,  50],
 	"mining_drill":      [350,   0],
+	"refinery":          [500, 100],
 }
 
 const GHOST_SIZES := {
-	"main_station":      Vector3(22, 12, 22),
-	"fusion_core":       Vector3(12, 12, 12),
-	"am_factory_small":  Vector3( 5, 10,  5),
-	"am_factory_big":    Vector3(10, 14, 10),
-	"storage_container": Vector3(10, 10, 14),
-	"mining_drill":      Vector3( 8,  8,  8),
+	"main_station":      Vector3(2.4, 1.2, 2.4),
+	"fusion_core":       Vector3(1.4, 1.4, 1.4),
+	"am_factory_small":  Vector3(0.8, 1.2, 0.8),
+	"am_factory_big":    Vector3(1.2, 1.4, 1.2),
+	"storage_container": Vector3(1.1, 1.1, 1.5),
+	"mining_drill":      Vector3(1.5, 1.0, 1.5),
+	"refinery":          Vector3(1.2, 1.0, 1.6),
 }
 
 const PART_OFFSETS := {
 	"res://scripts/entities/station_parts/MainStationPart.gd":
-		[Vector3(16,0,0),Vector3(-16,0,0),Vector3(0,0,16),Vector3(0,0,-16),Vector3(0,13,0),Vector3(0,-13,0)],
+		[Vector3(1.4,0,0),Vector3(-1.4,0,0),Vector3(0,0,1.4),Vector3(0,0,-1.4),Vector3(0,1.2,0),Vector3(0,-1.2,0)],
 	"res://scripts/entities/station_parts/FusionCore.gd":
-		[Vector3(10,0,0),Vector3(-10,0,0),Vector3(0,0,10),Vector3(0,0,-10)],
+		[Vector3(0.9,0,0),Vector3(-0.9,0,0),Vector3(0,0,0.9),Vector3(0,0,-0.9)],
 	"res://scripts/entities/station_parts/AntimatterFactorySmall.gd":
-		[Vector3(8,0,0),Vector3(-8,0,0),Vector3(0,0,8),Vector3(0,0,-8)],
+		[Vector3(0.7,0,0),Vector3(-0.7,0,0),Vector3(0,0,0.7),Vector3(0,0,-0.7)],
 	"res://scripts/entities/station_parts/AntimatterFactoryBig.gd":
-		[Vector3(12,0,0),Vector3(-12,0,0),Vector3(0,0,12),Vector3(0,0,-12)],
+		[Vector3(1.0,0,0),Vector3(-1.0,0,0),Vector3(0,0,1.0),Vector3(0,0,-1.0)],
 	"res://scripts/entities/station_parts/StorageContainer.gd":
-		[Vector3(9,0,0),Vector3(-9,0,0),Vector3(0,0,9),Vector3(0,0,-9)],
+		[Vector3(1.2,0,0),Vector3(-1.2,0,0),Vector3(0,0,1.2),Vector3(0,0,-1.2)],
 	"res://scripts/entities/station_parts/MiningDrill.gd":
-		[Vector3(7,0,0),Vector3(-7,0,0),Vector3(0,0,7),Vector3(0,0,-7)],
+		[Vector3(1.1,0,0),Vector3(-1.1,0,0),Vector3(0,0,1.1),Vector3(0,0,-1.1)],
+	"res://scripts/entities/station_parts/DurasteelRefinery.gd":
+		[Vector3(1.2,0,0),Vector3(-1.2,0,0),Vector3(0,0,1.2),Vector3(0,0,-1.2)],
 	"res://scripts/entities/Station.gd":
-		[Vector3(8,0,0),Vector3(-8,0,0),Vector3(0,0,8),Vector3(0,0,-8)],
+		[Vector3(0.7,0,0),Vector3(-0.7,0,0),Vector3(0,0,0.7),Vector3(0,0,-0.7)],
 }
 
 const SECTOR_UTILS := preload("res://scripts/autoload/SectorUtils.gd")
@@ -74,6 +78,7 @@ func setup(p_ship: Node3D, p_hud: Node, p_wm: WorldManager) -> void:
 		"am_factory_big":    preload("res://scenes/station_parts/AntimatterFactoryBig.tscn"),
 		"storage_container": preload("res://scenes/station_parts/StorageContainer.tscn"),
 		"mining_drill":      preload("res://scenes/station_parts/MiningDrill.tscn"),
+		"refinery":          preload("res://scenes/station_parts/DurasteelRefinery.tscn"),
 	}
 	_build_ghost(); _build_ui()
 
@@ -92,8 +97,8 @@ func _build_ui() -> void:
 	vbox.offset_left=12; vbox.offset_top=12; vbox.offset_right=-12; vbox.offset_bottom=-12; _ui.add_child(vbox)
 	var title := Label.new(); title.text="─── STATION EDITOR ───"
 	title.add_theme_color_override("font_color",Color(0.5,0.9,1.0)); title.add_theme_font_size_override("font_size",15); vbox.add_child(title)
-	var _module_labels := ["Main Hub","Fusion Core","AM Factory S","AM Factory L","Storage","Mining Drill"]
-	var _cost_labels   := ["500M+100D","300M+50D","200M+100D","600M+200D","400M+50D","350M"]
+	var _module_labels := ["Main Hub","Fusion Core","AM Factory S","AM Factory L","Storage","Mining Drill","Durasteel Refinery"]
+	var _cost_labels   := ["500M+100D","300M+50D","200M+100D","600M+200D","400M+50D","350M","500M+100D"]
 	for i in range(MODULE_NAMES.size()):
 		var row := HBoxContainer.new(); vbox.add_child(row)
 		var num := Label.new(); num.text="[%d] "%[(i+1)]; num.add_theme_color_override("font_color",Color(0.8,0.8,0.3)); row.add_child(num)
@@ -101,15 +106,15 @@ func _build_ui() -> void:
 	var sep := HSeparator.new(); vbox.add_child(sep)
 	_status_label = Label.new(); _status_label.text=""; _status_label.autowrap_mode=TextServer.AUTOWRAP_WORD; vbox.add_child(_status_label)
 	var sep2 := HSeparator.new(); vbox.add_child(sep2)
-	var hint := Label.new(); hint.text="[E] Platzieren\n[1-6] Modul\n[G/B] Schliessen"
+	var hint := Label.new(); hint.text="[E] Platzieren\n[1-7] Modul\n[G/B] Schliessen"
 	hint.add_theme_color_override("font_color",Color(0.65,0.65,0.65)); hint.add_theme_font_size_override("font_size",12); vbox.add_child(hint)
 	get_tree().root.call_deferred("add_child", _ui)
 
 func _refresh_ui_highlight() -> void:
 	if _ui == null: return
 	var vbox := _ui.get_child(1); var idx: int = 0
-	var _module_labels := ["Main Hub","Fusion Core","AM Factory S","AM Factory L","Storage","Mining Drill"]
-	var _cost_labels   := ["500M+100D","300M+50D","200M+100D","600M+200D","400M+50D","350M"]
+	var _module_labels := ["Main Hub","Fusion Core","AM Factory S","AM Factory L","Storage","Mining Drill","Durasteel Refinery"]
+	var _cost_labels   := ["500M+100D","300M+50D","200M+100D","600M+200D","400M+50D","350M","500M+100D"]
 	for child in vbox.get_children():
 		if not child is HBoxContainer: continue
 		var info: Label = child.get_child(1) if child.get_child_count()>1 else null
@@ -200,7 +205,7 @@ func _compute_free_or_orbital_snap() -> void:
 		_snap_point = planet.global_position + dir * (r + ORBIT_ALTITUDE)
 		_snap_valid = true
 	else:
-		_snap_point = ship.global_position - ship.transform.basis.z * 18.0
+		_snap_point = ship.global_position - ship.transform.basis.z * 1.8
 		_snap_valid = _snap_free  # nur gültig wenn wirklich erstes Part überhaupt
 
 func _update_ghost_visual() -> void:

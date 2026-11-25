@@ -4,7 +4,7 @@
 
 ## 📦 Git LFS Availability / Verfügbarkeit
 
-This repository uses a self-hosted Git LFS server for 3D models and large assets. To save energy, the LFS storage server automatically shuts down during the night. 
+This repository uses a self-hosted Git LFS server for 3D models and large assets. To save energy, the LFS storage server automatically shuts down during the night.
 
 If your `git clone` or `git lfs pull` fails with a connection error, please try again during the active operating hours.
 
@@ -206,6 +206,6 @@ scenes/               Minimal-Szenen (.tscn Stubs)
 ```
 ## Lizenz
 
-Dieses Projekt ist unter der **GNU General Public License Version 3 (GPLv3)** lizenziert. 
+Dieses Projekt ist unter der **GNU General Public License Version 3 (GPLv3)** lizenziert.
 
 Alle Quelltexte sowie alle im Projekt enthaltenen Medien (Bilder, Grafiken, Töne und Animationen) wurden selbst erstellt und unterliegen ebenfalls den Bedingungen dieser Lizenz. Weitere Details findest du in der Datei [LICENSE](LICENSE).

@@ -10,6 +10,7 @@ var fusion_core_scene:      PackedScene = preload("res://scenes/station_parts/Fu
 var am_factory_small_scene: PackedScene = preload("res://scenes/station_parts/AntimatterFactorySmall.tscn")
 var am_factory_big_scene:   PackedScene = preload("res://scenes/station_parts/AntimatterFactoryBig.tscn")
 var mining_drill_scene:     PackedScene = preload("res://scenes/station_parts/MiningDrill.tscn")
+var refinery_scene:         PackedScene = preload("res://scenes/station_parts/DurasteelRefinery.tscn")
 var npc_ship_scene:         PackedScene = preload("res://scenes/NPCShip.tscn")
 const SECTOR_UTILS := preload("res://scripts/autoload/SectorUtils.gd")
 
@@ -134,13 +135,15 @@ func _find_planet_by_name(container: Node3D, planet_name: String) -> Node3D:
 	return null
 
 func _instantiate_station_part(part_type: String) -> Node3D:
+	var scene := station_scene
 	match part_type:
-		"main_station":     return main_station_scene.instantiate()
-		"fusion_core":      return fusion_core_scene.instantiate()
-		"am_factory_small": return am_factory_small_scene.instantiate()
-		"am_factory_big":   return am_factory_big_scene.instantiate()
-		"mining_drill":     return mining_drill_scene.instantiate()
-		_:                  return station_scene.instantiate()
+		"main_station":     scene = main_station_scene
+		"fusion_core":      scene = fusion_core_scene
+		"am_factory_small": scene = am_factory_small_scene
+		"am_factory_big":   scene = am_factory_big_scene
+		"mining_drill":     scene = mining_drill_scene
+		"refinery":         scene = refinery_scene
+	return scene.instantiate()
 
 func _unload_sector(sector_id: String) -> void:
 	var container: Node3D = _loaded_sectors.get(sector_id)

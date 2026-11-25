@@ -1,6 +1,7 @@
 class_name FusionCore
 extends Node3D
 
+const VISUAL_SCALE := 0.1
 const POWER_OUTPUT: float = 150.0
 const TORUS_CENTER_R: float = 4.0
 const TORUS_TUBE_R:   float = 1.4
@@ -15,6 +16,7 @@ var _plasma_mesh:  MeshInstance3D     = null
 var _time: float = 0.0
 
 func _ready() -> void:
+	scale = Vector3.ONE * VISUAL_SCALE
 	add_to_group("stations"); add_to_group("fusion_cores"); _build_visual()
 
 func _process(delta: float) -> void:
@@ -94,4 +96,4 @@ func _build_neutral_beam_injectors() -> void:
 
 func _build_plasma_light() -> void:
 	_plasma_light = OmniLight3D.new(); _plasma_light.light_color = Color(1.0,0.55,0.05)
-	_plasma_light.omni_range = 60.0; _plasma_light.light_energy = 4.0; add_child(_plasma_light)
+	_plasma_light.omni_range = 6.0; _plasma_light.light_energy = 4.0; add_child(_plasma_light)

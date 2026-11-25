@@ -31,7 +31,7 @@ func _process(delta: float) -> void:
 		toggle()
 	if _ship == null:
 		return
-	
+
 	# Treffer-Leuchten langsam verblassen lassen (Animation per Code)
 	if _hit_intensity > 0.0:
 		_hit_intensity = maxf(0.0, _hit_intensity - 3.0 * delta)
@@ -68,10 +68,10 @@ func intercept_torpedo() -> bool:
 	if not shield_active or integrity <= 0.0:
 		return false
 	integrity -= TORPEDO_DAMAGE
-	
+
 	# Visueller Treffereffekt (Starkes Aufleuchten)
 	_trigger_hit_effect(1.0)
-	
+
 	if integrity <= 0.0:
 		integrity = 0.0
 		shield_active = false
@@ -85,10 +85,10 @@ func absorb_pse(raw_damage: float, delta: float) -> float:
 	if not shield_active or integrity <= 0.0:
 		return raw_damage
 	integrity -= PSE_DAMAGE_PER_SEC * delta
-	
+
 	# Kontinuierliches leichtes Flackern bei PSE-Dauerbeschuss
 	_trigger_hit_effect(0.4)
-	
+
 	if integrity <= 0.0:
 		integrity = 0.0
 		shield_active = false

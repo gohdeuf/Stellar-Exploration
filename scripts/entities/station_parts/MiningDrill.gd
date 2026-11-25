@@ -1,6 +1,7 @@
 class_name MiningDrill
 extends Node3D
 
+const VISUAL_SCALE      := 0.1
 const MINING_RANGE     := 150.0   # Ideal für Orbitalstation
 const MINERAL_RATE     := 6.0     # Einheiten/Sek
 const DEUTERIUM_RATE   := 2.5
@@ -17,6 +18,7 @@ var _drill_mat:  StandardMaterial3D = null
 var _status_light: OmniLight3D = null
 
 func _ready() -> void:
+	scale = Vector3.ONE * VISUAL_SCALE
 	add_to_group("stations")
 	add_to_group("mining_drills")
 	_build_visual()
@@ -52,7 +54,7 @@ func _build_visual() -> void:
 
 	_status_light = OmniLight3D.new()
 	_status_light.light_color = Color(0.9, 0.65, 0.1)
-	_status_light.omni_range = 18.0; _status_light.light_energy = 0.0
+	_status_light.omni_range = 1.8; _status_light.light_energy = 0.0
 	add_child(_status_light)
 
 func _process(delta: float) -> void:
